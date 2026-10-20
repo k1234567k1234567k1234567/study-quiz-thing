@@ -1,10 +1,12 @@
 // Shared by the Vercel functions and server.js. The key comes from NVIDIA_API_KEY.
-const DEFAULT_MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
+const DEFAULT_VISION = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
+// Fast model first; the next one is tried automatically if NVIDIA says it is retired or missing.
+const DEFAULT_TEXT = `meta/llama-3.1-8b-instruct,${DEFAULT_VISION}`;
 const list = (v, fallback) => (v || fallback).split(',').map((s) => s.trim()).filter(Boolean);
 
 export const baseUrl = () => (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '');
-export const textModels = () => list(process.env.NVIDIA_MODEL, DEFAULT_MODEL);
-export const visionModels = () => list(process.env.NVIDIA_VISION_MODEL, DEFAULT_MODEL);
+export const textModels = () => list(process.env.NVIDIA_MODEL, DEFAULT_TEXT);
+export const visionModels = () => list(process.env.NVIDIA_VISION_MODEL, DEFAULT_VISION);
 export const hasKey = () => Boolean(process.env.NVIDIA_API_KEY && !/^nvapi-x+$/i.test(process.env.NVIDIA_API_KEY));
 
 const RETIRED = /end of life|end-of-life|retired|deprecat|decommission|no longer|not found|does not exist/i;
