@@ -31,6 +31,7 @@ export async function chat(messages, { vision = false, maxTokens = 3000, tempera
       if (!text) throw new AIError('The AI returned an empty answer.', 'empty');
       return text;
     }
+    if (body.error === 'busy' && attempt < 3) { await sleep([3, 6, 10][attempt] * 1000); continue; }
     if (body.error === 'rate' && attempt < 3) { await sleep(Math.min(body.retryAfter || 5, 30) * 1000); continue; }
     throw new AIError(body.message || `AI request failed (${r.status})`, body.error || 'upstream');
   }
