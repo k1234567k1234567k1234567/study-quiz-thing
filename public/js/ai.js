@@ -66,7 +66,7 @@ export async function transcribe(images, onProgress = () => {}) {
   for (let i = 0; i < images.length; i += batch) {
     onProgress(`Reading photos ${i + 1}-${Math.min(i + batch, images.length)} of ${images.length}...`);
     const content = [{ type: 'text', text: TRANSCRIBE }, ...images.slice(i, i + batch).map((url) => ({ type: 'image_url', image_url: { url } }))];
-    parts.push((await chat([{ role: 'user', content }], { vision: true, maxTokens: 3500, temperature: 0.1 })).trim());
+    parts.push((await chat([{ role: 'user', content }], { vision: true, maxTokens: 6000, temperature: 0.1 })).trim());
   }
   return parts.join('\n---\n');
 }
@@ -77,7 +77,7 @@ export async function makeCards(chunk, details) {
   const user = `${details ? `Student focus (still cover everything, but be extra thorough here): ${details}\n\n` : ''}NOTES:\n${chunk}`;
   return jsonCall(
     [{ role: 'system', content: CARD_SYSTEM }, { role: 'user', content: user }],
-    { maxTokens: 4000, temperature: 0.3 },
+    { maxTokens: 7000, temperature: 0.3 },
     (arr) => (Array.isArray(arr) ? arr : arr.cards || [])
       .map((c) => ({ q: asText(c.q ?? c.question), a: asText(c.a ?? c.answer), topic: asText(c.topic) }))
       .filter((c) => c.q && c.a),
@@ -119,7 +119,7 @@ export function makeQuiz({ source, topic, details, grade, count, types }) {
   ].filter(Boolean).join('\n\n');
   return jsonCall(
     [{ role: 'system', content: quizSystem({ grade, count, types, hasNotes }) }, { role: 'user', content: user }],
-    { maxTokens: 4000, temperature: 0.5 },
+    { maxTokens: 7000, temperature: 0.5 },
     (arr) => (Array.isArray(arr) ? arr : arr.questions || []).map(normQuestion).filter(Boolean),
   );
 }
