@@ -52,11 +52,14 @@ export async function forward(payload) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${process.env.NVIDIA_API_KEY}` },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(Math.min(left, 38000)),
+          signal: AbortSignal.timeout(Math.min(left, 26000)),
         });
         text = await up.text();
       } catch (e) {
-        return { status: 502, body: { error: 'upstream', message: `Could not reach NVIDIA: ${e.message}` } };
+        // A timeout or dropped connection is usually NVIDIA being slow, so treat it like "busy" and retry.
+        sawBusy = true;
+        last = { status: 503, body: { error: 'busy', message: `NVIDIA took too long to answer (model ${model}).` } };
+        continue;
       }
       if (up.status === 401 || up.status === 403) return { status: 401, body: { error: 'bad_key', message: 'NVIDIA rejected the API key' } };
       if (up.status === 429) return { status: 429, body: { error: 'rate', message: 'NVIDIA rate limit hit', retryAfter: Number(up.headers.get('retry-after')) || 10 } };

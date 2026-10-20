@@ -40,7 +40,7 @@ function uncovered(transcript, cards) {
 export async function buildCards({ transcript, details, mode, onProgress }) {
   if (mode !== 'ai') return basic.makeCards(transcript);
   const cards = [];
-  const chunks = chunkText(transcript, 3000);
+  const chunks = chunkText(transcript, 2000);
   for (let i = 0; i < chunks.length; i++) {
     onProgress(`Writing cue cards (part ${i + 1} of ${chunks.length})...`);
     cards.push(...(await ai.makeCards(chunks[i], details)));
