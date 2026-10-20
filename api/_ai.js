@@ -44,13 +44,15 @@ export async function forward(payload) {
         temperature: typeof payload.temperature === 'number' ? payload.temperature : 0.3,
         stream: false,
       };
+      // NVIDIA's own Nemotron sample sets a thinking budget; a small one keeps answers fast.
+      if (/nemotron/i.test(model)) body.reasoning_budget = 1500;
       let up, text;
       try {
         up = await fetch(`${baseUrl()}/chat/completions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${process.env.NVIDIA_API_KEY}` },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(left),
+          signal: AbortSignal.timeout(Math.min(left, 38000)),
         });
         text = await up.text();
       } catch (e) {
