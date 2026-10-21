@@ -38,3 +38,6 @@ Photos are read on your device with Tesseract.js and questions come from simple 
 4. Deploy. You can also use the CLI: `npx vercel --prod`.
 
 Notes: Vercel caps request bodies at 4.5MB, so photos are sent one per request. Anyone with the link can use your key, so keep the URL private or turn on Vercel Deployment Protection.
+
+## Faster text with Groq (optional)
+Make a free key at console.groq.com and add it as `GROQ_API_KEY` (in `.env`, or in Vercel under Settings > Environment Variables). Cards and quizzes then go to Groq first and fall back to NVIDIA if Groq is busy or rate limited. Photos still use NVIDIA, so keep `NVIDIA_API_KEY` too. Set `GROQ_MODEL` to change the model (a comma-separated list is tried in order).

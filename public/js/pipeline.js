@@ -19,7 +19,7 @@ const chunkText = (text, size) => {
 export async function readNotes({ images, notes, mode, onProgress }) {
   let text = (notes || '').trim();
   if (images.length) {
-    const read = mode === 'ai' ? await ai.transcribe(images, onProgress) : await ocrImages(images, onProgress);
+    const read = mode === 'ai' && ai.canReadPhotos() ? await ai.transcribe(images, onProgress) : await ocrImages(images, onProgress);
     text = [text, read].filter(Boolean).join('\n---\n');
   }
   return text;

@@ -4,7 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { forward, hasKey, textModels, visionModels } from './api/_ai.js';
+import { forward, hasKey, describe } from './api/_ai.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -59,7 +59,7 @@ function readBody(req) {
 }
 
 async function handleAI(req, res) {
-  if (!hasKey()) return send(res, 503, { error: 'no_key', message: 'No NVIDIA_API_KEY set in .env' });
+  if (!hasKey()) return send(res, 503, { error: 'no_key', message: 'No NVIDIA_API_KEY or GROQ_API_KEY set in .env' });
   let payload;
   try { payload = JSON.parse(await readBody(req)); }
   catch (e) { return send(res, e.status || 400, { error: 'bad_request', message: e.message }); }
@@ -92,7 +92,7 @@ http.createServer(async (req, res) => {
   try {
     const { pathname } = new URL(req.url, 'http://x');
     if (pathname === '/api/status' && req.method === 'GET') {
-      return send(res, 200, { ai: hasKey(), model: textModels()[0], visionModel: visionModels()[0] });
+      return send(res, 200, describe());
     }
     if (pathname === '/api/ai' && req.method === 'POST') return await handleAI(req, res);
     if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(req, res);
@@ -102,5 +102,6 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   console.log(`Study Hub running at http://localhost:${PORT}`);
-  console.log(hasKey() ? `AI: on (${textModels().join(', ')} / ${visionModels().join(', ')})` : 'AI: off. Add NVIDIA_API_KEY to .env for AI mode (basic mode still works).');
+  const info = describe();
+  console.log(hasKey() ? `AI: on (text: ${info.textProvider} ${info.model}; photos: ${info.photos ? info.visionModel : 'need NVIDIA_API_KEY'})` : 'AI: off. Add NVIDIA_API_KEY or GROQ_API_KEY to .env for AI mode (basic mode still works).');
 });
