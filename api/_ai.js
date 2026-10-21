@@ -4,7 +4,8 @@
 const DEFAULT_VISION = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
 // Fast model first; the next one is tried automatically if NVIDIA says it is retired or missing.
 const DEFAULT_TEXT = `meta/llama-3.1-8b-instruct,${DEFAULT_VISION}`;
-const DEFAULT_GROQ = 'llama-3.3-70b-versatile,llama-3.1-8b-instant';
+// Groq retired its Llama 3.x models on the free tier in Aug 2026; GPT-OSS replaces them.
+const DEFAULT_GROQ = 'openai/gpt-oss-120b,openai/gpt-oss-20b';
 const list = (v, fallback) => (v || fallback).split(',').map((s) => s.trim()).filter(Boolean);
 
 export const baseUrl = () => (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '');
@@ -74,6 +75,7 @@ export async function forward(payload) {
       };
       // NVIDIA's own Nemotron sample sets a thinking budget; a small one keeps answers fast.
       if (t.name === 'NVIDIA' && /nemotron/i.test(t.model)) body.reasoning_budget = 1500;
+      if (t.name === 'Groq' && /gpt-oss/i.test(t.model)) body.reasoning_effort = 'low'; // answer fast
       let up, text;
       try {
         up = await fetch(`${t.url}/chat/completions`, {
@@ -131,6 +133,7 @@ export async function selfTest() {
     try {
       const body = { model: t.model, messages: [{ role: 'user', content: 'Reply with the single word OK.' }], max_tokens: 64, temperature: 0, stream: false };
       if (t.name === 'NVIDIA' && /nemotron/i.test(t.model)) body.reasoning_budget = 64;
+      if (t.name === 'Groq' && /gpt-oss/i.test(t.model)) body.reasoning_effort = 'low';
       const up = await fetch(`${t.url}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t.key}` },
