@@ -16,8 +16,24 @@ function isHeading(line, next) {
   return t.endsWith(':') || t === t.toUpperCase() || (next !== undefined && (isBullet(next) || words(next).length > words(t).length));
 }
 
+// Photos come back hard-wrapped, so one sentence can span several lines. Join those lines
+// back together, otherwise every fragment becomes its own (cut-off) question.
+function unwrap(raw) {
+  const out = [];
+  for (const line of raw) {
+    const prev = out[out.length - 1];
+    const lastWord = prev ? (prev.match(/([A-Za-z]+)[,;]?$/) || [])[1] : '';
+    const continues = prev && !isBullet(line) && !/[.!?:]$/.test(prev)
+      && (/^[a-z]/.test(line) || /[,;]$/.test(prev) || STOP.has((lastWord || '').toLowerCase()));
+    if (!continues) out.push(line);
+    else if (/[A-Za-z]-$/.test(prev) && /^[a-z]/.test(line)) out[out.length - 1] = prev.slice(0, -1) + line;
+    else out[out.length - 1] = `${prev} ${line}`;
+  }
+  return out;
+}
+
 function parse(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^-{3,}$/.test(l) && !/^\[.*\]$/.test(l));
+  const lines = unwrap(text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^-{3,}$/.test(l) && !/^\[.*\]$/.test(l)));
   const facts = [];
   const lists = [];
   let heading = '';
@@ -48,7 +64,7 @@ function split(line) {
   let m = line.match(/^(.{2,60}?)\s+(?:is defined as|are defined as|is|are|means|refers to|is called|are called)\s+(.+)$/i);
   if (m && words(m[1]).length <= 6 && !/^(?:it|this|that|there|they|he|she|we)$/i.test(m[1].trim())) return { term: m[1].trim(), def: m[2].trim(), verb: /\bare\b/i.test(line.slice(m[1].length, m[1].length + 12)) ? 'are' : 'is' };
   m = line.match(/^(.{2,50}?)\s*(?::|\s[-–—]\s)\s*(.+)$/);
-  if (m && words(m[1]).length <= 5) return { term: m[1].trim(), def: m[2].trim(), verb: 'is' };
+  if (m && words(m[1]).length <= 5) return { term: m[1].trim(), def: m[2].trim(), verb: ':' };
   return null;
 }
 
@@ -130,7 +146,7 @@ function build(type, f, defs, items) {
     const truth = Math.random() < 0.5;
     const other = shuffle(defs.filter((d) => d !== f))[0];
     const def = truth ? f.s.def : other.s.def;
-    return { type: 'tf', q: `${cap(f.s.term)} ${f.s.verb} ${def}`, answer: truth, explanation: sentence(f.line), topic };
+    return { type: 'tf', q: f.s.verb === ':' ? `${cap(f.s.term)}: ${def}` : `${cap(f.s.term)} ${f.s.verb} ${def}`, answer: truth, explanation: sentence(f.line), topic };
   }
   if (type === 'short' && f.s) {
     return { type: 'short', q: `Explain: ${f.s.term}`, answer: cap(sentence(f.s.def)), explanation: '', topic };
