@@ -44,3 +44,6 @@ Make a free key at console.groq.com and add it as `GROQ_API_KEY` (in `.env`, or 
 
 ## Checking the AI connection
 Open `/api/test` on your site (or use Settings > Test AI connection). It sends a tiny request to every model the site can use and shows the status and any error. Keys are never shown.
+
+## PDFs and text files
+In the wizard, "Upload PDF or text file" reads a PDF on your device (nothing is uploaded; pdf.js is bundled in `public/vendor/pdfjs`). You choose a page range, and the text goes into the notes box so you can edit it. Pages with no text (scans) are treated like photos. For a whole subject, do one chapter at a time: each project uses up to about 40,000 characters, and every ~2,000 characters is one AI request. For a Google Doc, use File > Download > PDF first.

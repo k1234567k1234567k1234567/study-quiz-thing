@@ -3,12 +3,14 @@ import * as ai from './ai.js';
 import { GRADES, QTYPES } from './prompts.js';
 import { readNotes, buildCards, buildQuiz } from './pipeline.js';
 import { fileToDataUrl, rotateDataUrl } from './images.js';
+import { pdfPageCount, readPdf } from './pdf.js';
 import { h, $, toast, busy, modal } from './ui.js';
 
 const app = $('#app');
 const state = { ai: false, offline: false };
 let cleanup = null;
 
+const MAX_CHARS = 40000; // keeps one project within the free AI limits
 const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
 const mode = () => (state.ai ? 'ai' : 'basic');
 
@@ -149,6 +151,33 @@ function wizSource() {
     keep();
     renderWizard();
   };
+  // PDFs and text files: text goes into the notes box, scanned pages become photos.
+  const addDocument = async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    keep();
+    const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    const append = (t) => { wiz.notes = [wiz.notes.trim(), t.trim()].filter(Boolean).join('\n\n'); };
+    try {
+      if (!isPdf) { append(await f.text()); renderWizard(); return; }
+      const b = busy('Opening your PDF...');
+      let total;
+      try { total = await pdfPageCount(f); } finally { b.close(); }
+      askPages(f.name, total, async (from, to) => {
+        const bb = busy('Reading your PDF...');
+        try {
+          const r = await readPdf(f, { from, to, onProgress: bb.set });
+          if (r.text) append(r.text);
+          for (const img of r.scans) wiz.images.push(img);
+          if (!r.text && !r.scans.length) toast('No readable text found in those pages.');
+          else toast(`Read ${r.pages} page${r.pages === 1 ? '' : 's'}${r.scans.length ? ` (${r.scans.length} scanned)` : ''}${r.skipped ? `; skipped ${r.skipped} scanned pages over the limit` : ''}`);
+        } catch (err) { toast(err.message); }
+        bb.close();
+        renderWizard();
+      });
+    } catch (err) { toast(err.message); }
+  };
   const notes = h('textarea', { rows: 6, placeholder: isQuiz ? 'Paste or type notes (optional if you add photos or a topic)' : 'Paste or type your notes (or add photos above)', oninput: (e) => { wiz.notes = e.target.value; } }, wiz.notes);
   const topic = h('input', { type: 'text', placeholder: 'e.g. Photosynthesis, WW1 causes, Quadratic equations', value: wiz.topic, oninput: (e) => { wiz.topic = e.target.value; } });
   const details = h('textarea', { rows: 3, placeholder: isQuiz ? 'Go into detail: subtopics, chapters, or things to focus on (optional)' : 'Anything to focus on? (optional, everything is still covered)', oninput: (e) => { wiz.details = e.target.value; } }, wiz.details);
@@ -167,7 +196,8 @@ function wizSource() {
       isQuiz && h('label', { class: 'field' }, h('span', {}, 'Topic'), topic),
       h('div', { class: 'row' },
         h('label', { class: 'btn' }, '📷 Take photo', h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'hidden', onchange: addFiles })),
-        h('label', { class: 'btn' }, '🖼️ Upload photos', h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'hidden', onchange: addFiles }))),
+        h('label', { class: 'btn' }, '🖼️ Upload photos', h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'hidden', onchange: addFiles })),
+        h('label', { class: 'btn' }, '📄 Upload PDF or text file', h('input', { type: 'file', accept: '.pdf,application/pdf,.txt,.md,text/plain', class: 'hidden', id: 'docInput', onchange: addDocument }))),
       wiz.images.length > 0 && thumbs(),
       h('label', { class: 'field' }, h('span', {}, isQuiz ? 'Notes' : 'Typed notes'), notes),
       h('label', { class: 'field' }, h('span', {}, 'Details'), details)),
@@ -180,6 +210,23 @@ function wizSource() {
       h('button', { class: 'btn ghost', onclick: () => { keep(); wiz.step = 1; renderWizard(); } }, 'Back'),
       h('button', { class: 'btn primary', onclick: () => { keep(); next(); } }, state.ai ? 'Continue' : 'Continue (basic mode)')),
     !state.ai && h('p', { class: 'muted small' }, 'Basic mode: photos are read on this device and questions are rule-based. Add an NVIDIA key for AI-written questions.'));
+}
+
+function askPages(name, total, onPick) {
+  const from = h('input', { type: 'number', min: 1, max: total, value: 1, 'aria-label': 'From page' });
+  const to = h('input', { type: 'number', min: 1, max: total, value: Math.min(total, 15), 'aria-label': 'To page' });
+  const body = h('div', { class: 'stack' },
+    h('p', {}, `${name} has ${total} page${total === 1 ? '' : 's'}. Which pages do you want to study?`),
+    h('div', { class: 'row' }, h('label', { class: 'field' }, h('span', {}, 'From page'), from), h('label', { class: 'field' }, h('span', {}, 'To page'), to)),
+    h('p', { class: 'muted small' }, 'Big ranges take longer and use more of your free AI requests. For a whole subject, do one chapter at a time.'));
+  modal('Choose pages', body, [
+    { label: 'Cancel' },
+    { label: 'Read these pages', primary: true, onClick: () => {
+      const a = Math.min(Math.max(1, Number(from.value) || 1), total);
+      const z = Math.min(Math.max(a, Number(to.value) || total), total);
+      onPick(a, z);
+    } },
+  ]);
 }
 
 async function next() {
@@ -201,6 +248,10 @@ async function next() {
     } catch (e) { b.close(); wiz.error = e.message; return renderWizard(); }
   }
   wiz.transcript = wiz.notes.trim();
+  if (wiz.transcript.length > MAX_CHARS) {
+    wiz.transcript = wiz.transcript.slice(0, MAX_CHARS);
+    toast(`Your notes are very long, so only the first ${MAX_CHARS.toLocaleString()} characters are used. Do the rest as a separate project.`);
+  }
   generate();
 }
 
