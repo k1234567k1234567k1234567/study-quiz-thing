@@ -58,16 +58,16 @@ input[type=text], textarea { width: 100%; padding: 10px 12px; border-radius: 10p
 
 .bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; } .bar span { display: block; height: 100%; background: var(--primary); transition: width .2s; }
 
-.flip { perspective: 1200px; min-height: 260px; position: relative; cursor: pointer; }
-.face { position: absolute; inset: 0; backface-visibility: hidden; transition: transform .45s; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; justify-content: center; gap: 8px; overflow: auto; text-align: center; }
-.face p { font-size: 1.3rem; margin: 0; } .face small { color: var(--muted); } .face .hint { position: absolute; bottom: 10px; left: 0; right: 0; }
+.flip { perspective: 1200px; display: grid; cursor: pointer; }
+.face { grid-area: 1 / 1; min-height: 260px; box-sizing: border-box; backface-visibility: hidden; transition: transform .45s; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; justify-content: safe center; gap: 8px; text-align: center; }
+.face p { font-size: 1.3rem; margin: 0; overflow-wrap: anywhere; } .face small { color: var(--muted); } .face .hint { margin-top: 10px; }
 .face.back { transform: rotateY(180deg); background: color-mix(in srgb, var(--primary) 8%, var(--surface)); }
 .flip.flipped .front { transform: rotateY(-180deg); } .flip.flipped .back { transform: rotateY(0); }
 .yours { border-top: 1px dashed var(--line); padding-top: 8px; } .yours p { font-size: 1rem; }
 @media (prefers-reduced-motion: reduce) { .face { transition: none; } }
 
-.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); } .qcard h2 { margin: 0; font-size: 1.3rem; }
-.option { text-align: left; padding: 12px 14px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); } .qcard h2 { margin: 0; font-size: 1.3rem; overflow-wrap: anywhere; }
+.option { overflow-wrap: anywhere; text-align: left; padding: 12px 14px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
 .option:hover:not(:disabled) { border-color: var(--primary); } .option.sel { border-color: var(--primary); }
 .option.right { border-color: var(--good); background: var(--good-bg); } .option.wrong { border-color: var(--bad); background: var(--bad-bg); }
 .feedback { padding: 10px 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); } .feedback p { margin: 4px 0 0; }
