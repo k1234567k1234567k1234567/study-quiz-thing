@@ -73,7 +73,8 @@ function openSettings() {
         const a = h('a', { href: URL.createObjectURL(new Blob([store.exportJSON()], { type: 'application/json' })), download: 'study-hub-backup.json' });
         a.click();
       } }, 'Export backup'),
-      h('button', { class: 'btn', onclick: () => file.click() }, 'Import backup'), file),
+      h('button', { class: 'btn', onclick: () => file.click() }, 'Import backup'), file,
+      h('a', { class: 'btn', href: '/api/test', target: '_blank', rel: 'noopener' }, 'Test AI connection')),
     h('p', { class: 'muted small' }, 'Projects are saved in this browser only. Export a backup to move them to another device.'));
   modal('Settings', body, [{ label: 'Close', primary: true }]);
 }

@@ -22,7 +22,7 @@ export function describe() {
 }
 
 // Ordered list of places to send a request: { name, url, key, model, timeout }.
-function targets(vision) {
+export function targets(vision) {
   const out = [];
   if (!vision && hasGroq()) {
     for (const model of groqModels()) out.push({ name: 'Groq', url: groqUrl(), key: process.env.GROQ_API_KEY, model, timeout: 15000 });
@@ -114,4 +114,42 @@ export async function forward(payload) {
     await sleep(2000);
   }
   return last;
+}
+
+// Sends a tiny prompt to every target the site can use, so problems show up in one place.
+// Never returns key text: error snippets have any key removed.
+export async function selfTest() {
+  const keys = [process.env.NVIDIA_API_KEY, process.env.GROQ_API_KEY].filter(Boolean);
+  const scrub = (t) => keys.reduce((out, k) => out.split(k).join('***'), String(t)).replace(/\s+/g, ' ').slice(0, 200);
+  const jobs = [
+    ...targets(false).map((t) => ({ t, used: 'cards and quizzes' })),
+    ...targets(true).map((t) => ({ t, used: 'reading photos' })),
+  ];
+  const results = await Promise.all(jobs.map(async ({ t, used }) => {
+    const started = Date.now();
+    const base = { provider: t.name, model: t.model, used };
+    try {
+      const body = { model: t.model, messages: [{ role: 'user', content: 'Reply with the single word OK.' }], max_tokens: 64, temperature: 0, stream: false };
+      if (t.name === 'NVIDIA' && /nemotron/i.test(t.model)) body.reasoning_budget = 64;
+      const up = await fetch(`${t.url}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t.key}` },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20000),
+      });
+      const text = await up.text();
+      return { ...base, ok: up.ok, status: up.status, ms: Date.now() - started, ...(up.ok ? {} : { error: scrub(text) }) };
+    } catch (e) {
+      return { ...base, ok: false, status: 0, ms: Date.now() - started, error: scrub(e.message) };
+    }
+  }));
+  return {
+    keys: {
+      NVIDIA_API_KEY: hasNvidia() ? 'set' : 'missing',
+      GROQ_API_KEY: hasGroq() ? 'set' : 'missing',
+      nvidiaFormatLooksRight: !process.env.NVIDIA_API_KEY || /^nvapi-/.test(process.env.NVIDIA_API_KEY),
+      groqFormatLooksRight: !process.env.GROQ_API_KEY || /^gsk_/.test(process.env.GROQ_API_KEY),
+    },
+    results,
+  };
 }

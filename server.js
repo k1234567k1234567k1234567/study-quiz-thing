@@ -4,7 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { forward, hasKey, describe } from './api/_ai.js';
+import { forward, hasKey, describe, selfTest } from './api/_ai.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -94,6 +94,7 @@ http.createServer(async (req, res) => {
     if (pathname === '/api/status' && req.method === 'GET') {
       return send(res, 200, describe());
     }
+    if (pathname === '/api/test' && req.method === 'GET') return send(res, 200, await selfTest());
     if (pathname === '/api/ai' && req.method === 'POST') return await handleAI(req, res);
     if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(req, res);
     send(res, 405, 'Method not allowed');
