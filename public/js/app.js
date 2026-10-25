@@ -17,8 +17,7 @@ const mode = () => (state.ai ? 'ai' : 'basic');
 
 /* ---------- theme ---------- */
 function applyTheme() {
-  const t = store.theme();
-  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = store.theme() === 'light' ? 'light' : 'dark';
 }
 applyTheme();
 
@@ -71,7 +70,7 @@ function openSettings() {
         ? 'Can\'t reach the Study Hub server, so only basic mode works. Start it with "node server.js".'
         : 'Basic mode: photos are read on your device and questions are made by simple rules. For smarter questions, get a free key at build.nvidia.com, put it in a .env file as NVIDIA_API_KEY, and restart the server (see README).'),
     h('div', { class: 'row' },
-      h('button', { class: 'btn', onclick: () => { store.setTheme(store.theme() === 'dark' ? 'light' : 'dark'); applyTheme(); } }, 'Toggle dark / light'),
+      h('button', { class: 'btn', onclick: () => { store.setTheme(store.theme() === 'light' ? 'dark' : 'light'); applyTheme(); } }, 'Switch black / light'),
       h('button', { class: 'btn', onclick: () => {
         const a = h('a', { href: URL.createObjectURL(new Blob([store.exportJSON()], { type: 'application/json' })), download: 'study-hub-backup.json' });
         a.click();
