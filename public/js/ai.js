@@ -21,7 +21,7 @@ export async function status() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function chat(messages, { vision = false, maxTokens = 3000, temperature = 0.3 } = {}) {
+export async function chat(messages, { vision = false, maxTokens = 3000, temperature = 0.3, retries = 3 } = {}) {
   for (let attempt = 0; ; attempt++) {
     let r;
     try {
@@ -37,8 +37,8 @@ export async function chat(messages, { vision = false, maxTokens = 3000, tempera
       if (!text) throw new AIError('The AI returned an empty answer.', 'empty');
       return text;
     }
-    if (body.error === 'busy' && attempt < 3) { await sleep([3, 6, 10][attempt] * 1000); continue; }
-    if (body.error === 'rate' && attempt < 3) { await sleep(Math.min(body.retryAfter || 5, 30) * 1000); continue; }
+    if (body.error === 'busy' && attempt < retries) { await sleep([3, 6, 10][attempt] * 1000); continue; }
+    if (body.error === 'rate' && attempt < retries) { await sleep(Math.min(body.retryAfter || 5, 30) * 1000); continue; }
     throw new AIError(body.message || `AI request failed (${r.status})`, body.error || 'upstream');
   }
 }

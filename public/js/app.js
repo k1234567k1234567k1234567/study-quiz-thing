@@ -457,6 +457,15 @@ function renderQuiz(p) {
   const s = { qs: shuffle(p.questions), i: 0, result: [], picked: null, submitted: false, revealed: false, full: true };
 
   const record = (q, ok) => { s.result.push({ q, ok }); s.submitted = true; };
+  // AI-drawn pictures can be wrong, so a bad one is thrown out of this quiz and the saved project.
+  const dropBad = (q) => {
+    s.qs.splice(s.i, 1);
+    p.questions = p.questions.filter((x) => x !== q);
+    store.update(p.id, { questions: p.questions });
+    s.picked = null; s.revealed = false;
+    toast('Diagram removed');
+    draw();
+  };
 
   const draw = () => {
     if (s.i >= s.qs.length) return finish();
@@ -493,7 +502,9 @@ function renderQuiz(p) {
         h('a', { class: 'btn ghost', href: `#/p/${p.id}` }, '← Exit'),
         h('span', { class: 'muted' }, `Question ${s.i + 1} of ${s.qs.length}`)),
       h('div', { class: 'bar' }, h('span', { style: `width:${(s.i / s.qs.length) * 100}%` })),
-      h('div', { class: 'qcard stack' }, q.topic && h('small', { class: 'muted' }, q.topic), h('h2', {}, q.q), q.diagram && renderDiagram(q.diagram), body, fb,
+      h('div', { class: 'qcard stack' }, q.topic && h('small', { class: 'muted' }, q.topic), h('h2', {}, q.q), q.diagram && renderDiagram(q.diagram),
+        q.diagram?.kind === 'ai' && !s.submitted && h('button', { class: 'btn ghost small', onclick: () => dropBad(q) }, 'This diagram looks wrong — skip it'),
+        body, fb,
         s.submitted && h('button', { class: 'btn primary', onclick: () => { s.i++; s.picked = null; s.submitted = false; s.revealed = false; draw(); } }, s.i + 1 >= s.qs.length ? 'See results' : 'Next →')));
     if (input && !s.submitted && !s.revealed) input.focus();
   };
@@ -501,6 +512,7 @@ function renderQuiz(p) {
   const finish = () => {
     const score = s.result.filter((r) => r.ok).length;
     const total = s.result.length;
+    if (!total) return go(`#/p/${p.id}`);
     if (s.full) store.update(p.id, { lastResult: { score, total, date: Date.now() } });
     const missed = s.result.filter((r) => !r.ok).map((r) => r.q);
     const again = (qs, full) => { s.qs = shuffle(qs); s.i = 0; s.result = []; s.picked = null; s.submitted = false; s.revealed = false; s.full = full; draw(); };

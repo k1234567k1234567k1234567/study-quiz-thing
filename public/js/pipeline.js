@@ -4,6 +4,7 @@ import * as basic from './generate.js';
 import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
 import { diagramQuestions, diagramCards } from './diagramq.js';
+import { aiDiagramProblems } from './aidiagram.js';
 
 const chunkText = (text, size) => {
   const chunks = [];
@@ -39,8 +40,7 @@ function uncovered(transcript, cards) {
 }
 
 export async function buildCards({ transcript, details, mode, onProgress }) {
-  const extra = () => diagramCards({ text: `${transcript}\n${details || ''}` });
-  if (mode !== 'ai') return [...basic.makeCards(transcript), ...extra()];
+  if (mode !== 'ai') return [...basic.makeCards(transcript), ...diagramCards({ text: `${transcript}\n${details || ''}` })];
   const cards = [];
   const chunks = chunkText(transcript, 2000);
   for (let i = 0; i < chunks.length; i++) {
@@ -52,12 +52,14 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
     onProgress('Checking nothing was missed...');
     try { cards.push(...(await ai.makeCards(missed.join('\n'), details))); } catch { /* the main cards are still good */ }
   }
-  return [...cards, ...extra()];
+  onProgress('Drawing diagrams...');
+  const pics = await aiDiagramProblems(`${transcript}\n${details || ''}`);
+  return [...cards, ...diagramCards({ text: `${transcript}\n${details || ''}`, extra: pics })];
 }
 
 // Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
-function withDiagrams(questions, { text, types, count }) {
-  const extra = diagramQuestions({ text, types, count });
+function withDiagrams(questions, { text, types, count, pics }) {
+  const extra = diagramQuestions({ text, types, count, extra: pics });
   return extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
 }
 
@@ -84,5 +86,8 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
       count: Math.max(2, Math.ceil(count / parts)),
     })));
   }
-  return { questions: withDiagrams(questions.slice(0, count), { text: `${transcript || ''}\n${topic || ''}\n${details || ''}`, types, count }), source: transcript };
+  const all = `${transcript || ''}\n${topic || ''}\n${details || ''}`;
+  onProgress('Drawing diagrams...');
+  const pics = await aiDiagramProblems(all);
+  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count, pics }), source: transcript };
 }

@@ -50,3 +50,7 @@ In the wizard, "Upload PDF or text file" reads a PDF on your device (nothing is 
 
 ## Diagram questions
 If your notes are about cells (animal cell, plant cell, neuron) or about functions (domain and range, parabolas, square root, absolute value, reciprocal, linear), quizzes and cue cards add a few questions that need a picture. The site draws the picture itself and works out the answer in code, so the arrow and the numbers are always exact. Function graphs show hollow or filled dots for open or closed ends. There are no standalone diagram pages.
+
+## Diagrams for any topic
+
+Cells, neurons and function graphs are drawn by the site itself, so the arrow and the numbers are exact. For other topics (the heart, a circuit, the water cycle, and so on) the AI designs a simple picture out of plain shapes while it writes the quiz or cards. The site checks every shape and label before drawing, and a question can only point at a spot that sits on a shape. AI pictures need AI mode (a Groq or NVIDIA key); in basic mode only the built-in pictures appear. AI-drawn pictures can be wrong or crude, so each one has a "This diagram looks wrong, skip it" button that removes the question from the quiz and the project.

@@ -301,16 +301,18 @@ function toQuestion(p, types) {
 
 const toCard = (p) => ({ q: p.prompt, a: p.kind === 'graph' ? `${p.answer}\n${p.explain}` : p.backText, topic: p.kind === 'graph' ? 'Graphs' : 'Diagrams', diagram: p.diagram, weak: false });
 
-function pool(text) {
+// `extra` is a list of problem lists for pictures the AI designed (see aidiagram.js). Lists are taken in turn,
+// so a quiz on several topics gets different pictures; one picture repeats only when its own parts run out.
+function pool(text, extra = []) {
   const d = detect(text);
-  const lists = [...d.bio.map((id) => bioProblems(id, text)), ...(d.graph.length ? [graphProblems(d.graph)] : [])];
+  const lists = [...d.bio.map((id) => bioProblems(id, text)), ...(d.graph.length ? [graphProblems(d.graph)] : []), ...extra];
   const out = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
   return out;
 }
 
-export function diagramQuestions({ text, types, count }) {
-  const all = pool(text);
+export function diagramQuestions({ text, types, count, extra }) {
+  const all = pool(text, extra);
   if (!all.length) return [];
   const want = Math.min(Math.max(1, Math.round(count * 0.3)), all.length);
   const qs = [];
@@ -318,9 +320,10 @@ export function diagramQuestions({ text, types, count }) {
   return qs;
 }
 
-export function diagramCards({ text }) {
+export function diagramCards({ text, extra = [] }) {
   const d = detect(text);
   const bio = d.bio.flatMap((id) => bioProblems(id, text).filter((p) => p.kind === 'name').slice(0, 6));
   const graphs = d.graph.length ? graphProblems(d.graph).slice(0, 4) : [];
-  return [...bio, ...graphs].map(toCard);
+  const ai = extra.flatMap((l) => l.filter((p) => p.kind === 'name').slice(0, 6));
+  return [...bio, ...graphs, ...ai].map(toCard);
 }
