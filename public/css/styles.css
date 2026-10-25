@@ -86,9 +86,10 @@ input[type=text], textarea { width: 100%; padding: 10px 12px; border-radius: 10p
 #print { display: none; }
 @media print {
   body > *:not(#print) { display: none !important; }
-  #print { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .pcard { border: 1px dashed #000; padding: 12px; break-inside: avoid; color: #000; background: #fff; }
+  #print { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .pcard .diagram svg { max-width: 230px; } .pcard { border: 1px dashed #000; padding: 12px; break-inside: avoid; color: #000; background: #fff; }
 }
 @media (max-width: 560px) {
   .choices, .editcard { grid-template-columns: 1fr; } .seg { grid-template-columns: 1fr 1fr; }
   .row.between { flex-wrap: wrap; }
 }
+.diagram { display: flex; justify-content: center; margin: 4px 0; } .diagram svg { width: 100%; max-width: 380px; height: auto; color: var(--text); }

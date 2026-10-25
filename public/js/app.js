@@ -4,6 +4,7 @@ import { GRADES, QTYPES } from './prompts.js';
 import { readNotes, buildCards, buildQuiz } from './pipeline.js';
 import { fileToDataUrl, rotateDataUrl } from './images.js';
 import { pdfPageCount, readPdf } from './pdf.js';
+import { renderDiagram } from './diagrams.js';
 import { h, $, toast, busy, modal } from './ui.js';
 
 const app = $('#app');
@@ -335,7 +336,7 @@ function renderProject(p) {
   };
 
   const items = isQuiz
-    ? p.questions.map((q, i) => h('li', {}, h('span', { class: 'muted small' }, `${QTYPES[q.type]} · `), q.q))
+    ? p.questions.map((q, i) => h('li', {}, h('span', { class: 'muted small' }, `${QTYPES[q.type]} · `), q.diagram ? '[diagram] ' : '', q.q))
     : p.cards.map((c) => cardEditor(p, c));
 
   page(
@@ -362,7 +363,7 @@ function cardEditor(p, c) {
 }
 
 function printCards(p) {
-  const sheet = h('div', { id: 'print' }, p.cards.map((c) => h('div', { class: 'pcard' }, h('div', {}, h('b', {}, 'Q: '), c.q), h('div', {}, h('b', {}, 'A: '), c.a))));
+  const sheet = h('div', { id: 'print' }, p.cards.map((c) => h('div', { class: 'pcard' }, h('div', {}, h('b', {}, 'Q: '), c.q), c.diagram && renderDiagram(c.diagram), h('div', {}, h('b', {}, 'A: '), c.a))));
   document.body.append(sheet);
   window.print();
   setTimeout(() => sheet.remove(), 500);
@@ -395,8 +396,8 @@ function renderCards(p) {
     const c = byId(s.order[s.i]);
     const ta = h('textarea', { rows: 3, placeholder: 'Type your answer here (optional)...', 'aria-label': 'Your answer', oninput: (e) => { s.typed = e.target.value; } }, s.typed);
     const card = h('div', { class: `flip ${s.flipped ? 'flipped' : ''}`, onclick: () => flip(), role: 'button', tabindex: 0, 'aria-label': s.flipped ? 'Card showing answer, click to see question' : 'Card showing question, click to reveal answer' },
-      h('div', { class: 'face front' }, h('small', {}, c.topic || 'Question'), h('p', {}, c.q), h('small', { class: 'hint' }, 'Tap to reveal')),
-      h('div', { class: 'face back' }, h('small', {}, 'Answer'), h('p', { class: 'pre' }, c.a),
+      h('div', { class: 'face front' }, h('small', {}, c.topic || 'Question'), h('p', {}, c.q), c.diagram && renderDiagram(c.diagram), h('small', { class: 'hint' }, 'Tap to reveal')),
+      h('div', { class: 'face back' }, h('small', {}, 'Answer'), c.diagram && renderDiagram(c.diagram), h('p', { class: 'pre' }, c.a),
         s.typed.trim() && h('div', { class: 'yours' }, h('small', {}, 'Your answer'), h('p', { class: 'pre' }, s.typed))));
     page(
       h('div', { class: 'row between' },
@@ -493,7 +494,7 @@ function renderQuiz(p) {
         h('a', { class: 'btn ghost', href: `#/p/${p.id}` }, '← Exit'),
         h('span', { class: 'muted' }, `Question ${s.i + 1} of ${s.qs.length}`)),
       h('div', { class: 'bar' }, h('span', { style: `width:${(s.i / s.qs.length) * 100}%` })),
-      h('div', { class: 'qcard stack' }, q.topic && h('small', { class: 'muted' }, q.topic), h('h2', {}, q.q), body, fb,
+      h('div', { class: 'qcard stack' }, q.topic && h('small', { class: 'muted' }, q.topic), h('h2', {}, q.q), q.diagram && renderDiagram(q.diagram), body, fb,
         s.submitted && h('button', { class: 'btn primary', onclick: () => { s.i++; s.picked = null; s.submitted = false; s.revealed = false; draw(); } }, s.i + 1 >= s.qs.length ? 'See results' : 'Next →')));
     if (input && !s.submitted && !s.revealed) input.focus();
   };
@@ -511,7 +512,7 @@ function renderQuiz(p) {
         missed.length > 0 && h('button', { class: 'btn primary', onclick: () => again(missed, false) }, `Retry missed (${missed.length})`),
         h('button', { class: 'btn', onclick: () => again(p.questions, true) }, 'Retake all'),
         h('a', { class: 'btn ghost', href: `#/p/${p.id}` }, 'Back to project'))),
-      missed.length > 0 && h('div', { class: 'stack' }, h('h2', {}, 'Review what you missed'), missed.map((q) => h('div', { class: 'feedback bad' }, h('b', {}, q.q),
+      missed.length > 0 && h('div', { class: 'stack' }, h('h2', {}, 'Review what you missed'), missed.map((q) => h('div', { class: 'feedback bad' }, h('b', {}, q.q), q.diagram && renderDiagram(q.diagram),
         h('p', {}, `Answer: ${q.type === 'mc' ? q.options[q.answer] : q.type === 'tf' ? (q.answer ? 'True' : 'False') : q.answer}`), q.explanation && h('p', { class: 'muted' }, q.explanation)))));
   };
   draw();

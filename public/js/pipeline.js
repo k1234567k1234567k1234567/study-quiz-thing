@@ -3,6 +3,7 @@ import * as ai from './ai.js';
 import * as basic from './generate.js';
 import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
+import { diagramQuestions, diagramCards } from './diagramq.js';
 
 const chunkText = (text, size) => {
   const chunks = [];
@@ -38,7 +39,8 @@ function uncovered(transcript, cards) {
 }
 
 export async function buildCards({ transcript, details, mode, onProgress }) {
-  if (mode !== 'ai') return basic.makeCards(transcript);
+  const extra = () => diagramCards({ text: `${transcript}\n${details || ''}` });
+  if (mode !== 'ai') return [...basic.makeCards(transcript), ...extra()];
   const cards = [];
   const chunks = chunkText(transcript, 2000);
   for (let i = 0; i < chunks.length; i++) {
@@ -50,7 +52,13 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
     onProgress('Checking nothing was missed...');
     try { cards.push(...(await ai.makeCards(missed.join('\n'), details))); } catch { /* the main cards are still good */ }
   }
-  return cards;
+  return [...cards, ...extra()];
+}
+
+// Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
+function withDiagrams(questions, { text, types, count }) {
+  const extra = diagramQuestions({ text, types, count });
+  return extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
 }
 
 export async function buildQuiz({ transcript, topic, details, grade, count, types, mode, onProgress }) {
@@ -62,8 +70,9 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
       if (!text) throw new Error(`Couldn't find "${topic}" online. Paste some notes instead.`);
     }
     const qs = basic.makeQuiz(text, { count, types, grade });
-    if (!qs.length) throw new Error('Not enough text to build questions. Add more notes.');
-    return { questions: qs, source: text };
+    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count });
+    if (!questions.length) throw new Error('Not enough text to build questions. Add more notes.');
+    return { questions, source: text };
   }
   const chunks = chunkText(transcript || '', 6000);
   const parts = Math.max(chunks.length, 1);
@@ -75,5 +84,5 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
       count: Math.max(2, Math.ceil(count / parts)),
     })));
   }
-  return { questions: questions.slice(0, count), source: transcript };
+  return { questions: withDiagrams(questions.slice(0, count), { text: `${transcript || ''}\n${topic || ''}\n${details || ''}`, types, count }), source: transcript };
 }

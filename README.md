@@ -47,3 +47,6 @@ Open `/api/test` on your site (or use Settings > Test AI connection). It sends a
 
 ## PDFs and text files
 In the wizard, "Upload PDF or text file" reads a PDF on your device (nothing is uploaded; pdf.js is bundled in `public/vendor/pdfjs`). You choose a page range, and the text goes into the notes box so you can edit it. Pages with no text (scans) are treated like photos. For a whole subject, do one chapter at a time: each project uses up to about 40,000 characters, and every ~2,000 characters is one AI request. For a Google Doc, use File > Download > PDF first.
+
+## Diagram questions
+If your notes are about cells (animal cell, plant cell, neuron) or about functions (domain and range, parabolas, square root, absolute value, reciprocal, linear), quizzes and cue cards add a few questions that need a picture. The site draws the picture itself and works out the answer in code, so the arrow and the numbers are always exact. Function graphs show hollow or filled dots for open or closed ends. There are no standalone diagram pages.
