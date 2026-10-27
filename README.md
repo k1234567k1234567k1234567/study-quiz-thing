@@ -54,3 +54,13 @@ If your notes are about cells (animal cell, plant cell, neuron) or about functio
 ## Diagrams for any topic
 
 Cells, neurons and function graphs are drawn by the site itself, so the arrow and the numbers are exact. For other topics (the heart, a circuit, the water cycle, and so on) the AI designs a simple picture out of plain shapes while it writes the quiz or cards. The site checks every shape and label before drawing, and a question can only point at a spot that sits on a shape. AI pictures need AI mode (a Groq or NVIDIA key); in basic mode only the built-in pictures appear. AI-drawn pictures can be wrong or crude, so each one has a "This diagram looks wrong, skip it" button that removes the question from the quiz and the project.
+
+## Diagram pictures for maths, physics and biology
+
+Quizzes and cue cards add picture questions when your notes mention the topic. Everything is drawn by the site from the same numbers that make the answers, so the arrow, the graph and the answer always agree. The AI is not used for pictures.
+
+- **Maths (Grade 11 functions):** reading values off graphs (f(2), f(x) = 3, intercepts), vertical line test, circles, mapping diagrams, transformations, inverses, right and special triangles, angles in standard position and CAST, the unit circle, the sine law, cosine law and ambiguous case, sinusoidal graphs, exponential graphs, sequences and Pascal's triangle.
+- **Physics:** free body diagrams (net force, acceleration), velocity-time and position-time graphs, waves, and series and parallel circuits. This is a general high-school set, not matched to a course outline.
+- **Biology:** animal and plant cells, neuron, DNA, a bacteriophage, a virus, a bacterium, a flower and a mushroom (an arrow points to a part), plus stages of mitosis and meiosis, the cell cycle, Punnett squares (single, dihybrid, incomplete dominance, blood types, sex-linked), pedigrees, karyotypes and the levels of classification.
+
+A topic only gets pictures when the notes use its words (for example "free body diagram" or "Punnett square"). Plain history or English notes get none. To add another picture, add a maker to `public/js/diagramq2.js`, `diagramq3.js` or `diagramq4.js`, a drawing to `diagrams2.js`, and a detection rule to `diagramtopics.js`.

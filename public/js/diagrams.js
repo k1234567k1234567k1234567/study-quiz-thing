@@ -1,10 +1,33 @@
 // Diagrams shown inside quiz questions and cue cards: function graphs and labelled biology
 // pictures with an arrow. Graphs and the cell/neuron pictures are drawn from fixed specs, so the arrow
 // and the numbers are always exact. Other topics use a picture the AI designed from plain shapes (see below).
+import { hasKind, renderKind } from './diagrams2.js';
+import { BIO2 } from './biopics.js';
+
 const NS = 'http://www.w3.org/2000/svg';
 const ARROW = '#e5322d';
 
 /* ---------------- function graphs ---------------- */
+
+const baseFn = {
+  quad: (u) => u * u,
+  sqrt: (u) => (u < 0 ? NaN : Math.sqrt(u)),
+  abs: (u) => Math.abs(u),
+  recip: (u) => (Math.abs(u) < 1e-9 ? NaN : 1 / u),
+  lin: (u) => u,
+  // a generic zig-zag "f" with end points, so stretches and shifts of the domain can be seen
+  zig: (u) => zigAt(u),
+};
+const ZIG = [[-4, -1], [-2, 2], [0, 0], [2, -2], [4, 1]];
+export function zigAt(u) {
+  if (u < -4 || u > 4) return NaN;
+  for (let i = 0; i < ZIG.length - 1; i++) {
+    const [x1, y1] = ZIG[i]; const [x2, y2] = ZIG[i + 1];
+    if (u >= x1 && u <= x2) return y1 + ((y2 - y1) * (u - x1)) / (x2 - x1);
+  }
+  return NaN;
+}
+const RAD = Math.PI / 180;
 
 export function evalF(f, x) {
   switch (f.type) {
@@ -13,66 +36,113 @@ export function evalF(f, x) {
     case 'sqrt': return x < f.h ? NaN : f.a * Math.sqrt(x - f.h) + f.k;
     case 'abs': return f.a * Math.abs(x - f.h) + f.k;
     case 'recip': return Math.abs(x - f.h) < 1e-9 ? NaN : f.a / (x - f.h) + f.k;
+    // a * base(k * (x - d)) + c for a parent graph and its transformations
+    case 'tr': return f.a * baseFn[f.base](f.k * (x - f.d)) + f.c;
+    // angles are in degrees: a * sin(k * (x - d)) + c
+    case 'sin': return f.a * Math.sin(f.k * (x - f.d) * RAD) + f.c;
+    case 'cos': return f.a * Math.cos(f.k * (x - f.d) * RAD) + f.c;
+    case 'exp': return f.a * f.b ** x + f.k;
+    // straight pieces through f.pts = [[x, y], ...] (used for motion graphs); undefined outside the points
+    case 'pw': {
+      const P = f.pts;
+      if (x < P[0][0] || x > P[P.length - 1][0]) return NaN;
+      for (let i = 0; i < P.length - 1; i++) if (x >= P[i][0] && x <= P[i + 1][0]) return P[i][1] + ((P[i + 1][1] - P[i][1]) * (x - P[i][0])) / ((P[i + 1][0] - P[i][0]) || 1);
+      return NaN;
+    }
     default: return NaN;
   }
 }
 
 let uidCount = 0;
+const css = (name) => `var(--${name})`;
 
+// spec: { f, from, to, fromOpen, toOpen, view:[x0,x1,y0,y1], xstep, ystep, size:[W,H],
+//         curves:[{f, dash, color}], rel:{type:'circle'|'side',...}, marks:[{x,y,label,open,color}],
+//         vline, hline, diag, discrete }
 function renderGraph(spec) {
-  const W = 340; const H = 340; const pad = 28;
+  const [W, H] = spec.size || [340, 340];
+  const pad = 28;
   const [x0, x1, y0, y1] = spec.view || [-6, 6, -6, 6];
   const sx = (x) => pad + ((x - x0) / (x1 - x0)) * (W - 2 * pad);
   const sy = (y) => H - pad - ((y - y0) / (y1 - y0)) * (H - 2 * pad);
   const id = `clip${++uidCount}`;
   const parts = [];
-  const step = Math.max(1, Math.ceil((x1 - x0) / 12));
+  const xstep = spec.xstep || Math.max(1, Math.ceil((x1 - x0) / 12));
+  const ystep = spec.ystep || Math.max(1, Math.ceil((y1 - y0) / 12));
   const axisX = Math.min(Math.max(0, y0), y1); // where the x axis sits
   const axisY = Math.min(Math.max(0, x0), x1);
-  for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
+  for (let x = Math.ceil(x0 / xstep) * xstep; x <= x1; x += xstep) {
     parts.push(`<line x1="${sx(x)}" y1="${pad}" x2="${sx(x)}" y2="${H - pad}" stroke="currentColor" stroke-opacity=".12"/>`);
     if (x !== 0) parts.push(`<text x="${sx(x)}" y="${Math.min(sy(axisX) + 14, H - 6)}" font-size="10" text-anchor="middle" fill="currentColor" fill-opacity=".8">${x}</text>`);
   }
-  for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) {
+  for (let y = Math.ceil(y0 / ystep) * ystep; y <= y1; y += ystep) {
     parts.push(`<line x1="${pad}" y1="${sy(y)}" x2="${W - pad}" y2="${sy(y)}" stroke="currentColor" stroke-opacity=".12"/>`);
     if (y !== 0) parts.push(`<text x="${Math.max(sx(axisY) - 6, 14)}" y="${sy(y) + 3}" font-size="10" text-anchor="end" fill="currentColor" fill-opacity=".8">${y}</text>`);
   }
   parts.push(`<line x1="${pad}" y1="${sy(axisX)}" x2="${W - pad}" y2="${sy(axisX)}" stroke="currentColor" stroke-opacity=".75" stroke-width="1.5"/>`);
   parts.push(`<line x1="${sx(axisY)}" y1="${pad}" x2="${sx(axisY)}" y2="${H - pad}" stroke="currentColor" stroke-opacity=".75" stroke-width="1.5"/>`);
-  parts.push(`<text x="${W - pad + 2}" y="${sy(axisX) - 5}" font-size="12" font-style="italic" fill="currentColor">x</text>`);
-  parts.push(`<text x="${sx(axisY) + 6}" y="${pad - 8}" font-size="12" font-style="italic" fill="currentColor">y</text>`);
+  parts.push(`<text x="${W - pad - 2}" y="${sy(axisX) - 6}" text-anchor="end" font-size="12" font-style="italic" fill="currentColor">${spec.xlabel || 'x'}</text>`);
+  parts.push(`<text x="${sx(axisY) + 6}" y="${pad - 8}" font-size="12" font-style="italic" fill="currentColor">${spec.ylabel || 'y'}</text>`);
 
-  // the curve, broken wherever the function is undefined or jumps (asymptotes)
-  const lo = Math.max(x0, spec.from ?? -Infinity);
-  const hi = Math.min(x1, spec.to ?? Infinity);
   const span = y1 - y0;
-  let d = '';
-  let prev = null;
-  const N = 600;
-  for (let i = 0; i <= N; i++) {
-    const x = lo + ((hi - lo) * i) / N;
-    const y = evalF(spec.f, x);
-    if (!Number.isFinite(y) || Math.abs(y) > 1e4) { prev = null; continue; }
-    const jump = prev !== null && Math.abs(y - prev) > span * 0.8;
-    d += `${prev === null || jump ? 'M' : 'L'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `;
-    prev = y;
-  }
-  parts.push(`<g clip-path="url(#${id})"><path d="${d}" fill="none" style="stroke:var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>`);
+  // a curve, broken wherever the function is undefined or jumps (asymptotes)
+  const curvePath = (f, from, to) => {
+    const lo = Math.max(x0, from ?? -Infinity);
+    const hi = Math.min(x1, to ?? Infinity);
+    let d = '';
+    let prev = null;
+    const N = 600;
+    for (let i = 0; i <= N; i++) {
+      const x = lo + ((hi - lo) * i) / N;
+      const y = evalF(f, x);
+      if (!Number.isFinite(y) || Math.abs(y) > 1e4) { prev = null; continue; }
+      const jump = prev !== null && Math.abs(y - prev) > span * 0.8;
+      d += `${prev === null || jump ? 'M' : 'L'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `;
+      prev = y;
+    }
+    return d;
+  };
+  const draw = (d, color, width, dash) => `<path d="${d}" fill="none" style="stroke:${css(color)}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${dash ? ' stroke-dasharray="7 6"' : ''}/>`;
+  const clipped = [];
+  if (spec.diag) clipped.push(draw(`M${sx(x0)} ${sy(x0)} L${sx(x1)} ${sy(x1)}`, 'muted', 1.8, true));
+  if (spec.vline != null) clipped.push(draw(`M${sx(spec.vline)} ${pad} L${sx(spec.vline)} ${H - pad}`, 'accent', 2, true));
+  if (spec.hline != null) clipped.push(draw(`M${pad} ${sy(spec.hline)} L${W - pad} ${sy(spec.hline)}`, 'accent', 2, true));
+  for (const c of spec.curves || []) clipped.push(draw(curvePath(c.f, c.from, c.to), c.color || 'accent', c.dash ? 2.5 : 3, c.dash));
+  if (spec.rel?.type === 'circle') {
+    const r = spec.rel;
+    clipped.push(`<ellipse cx="${sx(r.cx)}" cy="${sy(r.cy)}" rx="${Math.abs(sx(r.cx + r.r) - sx(r.cx))}" ry="${Math.abs(sy(r.cy + r.r) - sy(r.cy))}" fill="none" style="stroke:${css('primary')}" stroke-width="3"/>`);
+  } else if (spec.rel?.type === 'side') {
+    const r = spec.rel; // x = a(y - k)^2 + h
+    let d = '';
+    for (let i = 0; i <= 400; i++) {
+      const y = y0 + ((y1 - y0) * i) / 400;
+      const x = r.a * (y - r.k) ** 2 + r.h;
+      d += `${i ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `;
+    }
+    clipped.push(draw(d, 'primary', 3));
+  } else if (spec.f) clipped.push(draw(curvePath(spec.f, spec.from, spec.to), 'primary', 3));
+  parts.push(`<g clip-path="url(#${id})">${clipped.join('')}</g>`);
 
   // end dots: closed = filled, open = hollow
-  const dot = (x, open) => {
-    const y = evalF(spec.f, x);
+  const dot = (x, y, open, color = 'primary') => {
     if (!Number.isFinite(y) || x < x0 || x > x1 || y < y0 || y > y1) return;
-    parts.push(`<circle cx="${sx(x)}" cy="${sy(y)}" r="5" stroke-width="2.5" style="stroke:var(--primary);fill:${open ? 'var(--surface)' : 'var(--primary)'}"/>`);
+    parts.push(`<circle cx="${sx(x)}" cy="${sy(y)}" r="5" stroke-width="2.5" style="stroke:${css(color)};fill:${open ? 'var(--surface)' : css(color)}"/>`);
   };
-  if (spec.from != null) dot(spec.from, !!spec.fromOpen);
-  else if (spec.f.type === 'sqrt') dot(spec.f.h, false);
-  if (spec.to != null) dot(spec.to, !!spec.toOpen);
+  if (spec.f && !spec.discrete) {
+    const ends = (x, open) => dot(x, evalF(spec.f, x), open);
+    if (spec.from != null) ends(spec.from, !!spec.fromOpen);
+    else if (spec.f.type === 'sqrt') ends(spec.f.h, false);
+    if (spec.to != null) ends(spec.to, !!spec.toOpen);
+  }
+  for (const m of spec.marks || []) {
+    dot(m.x, m.y, !!m.open, m.color || 'accent');
+    if (m.label) parts.push(`<text x="${sx(m.x) + 8}" y="${sy(m.y) - 8}" font-size="13" font-weight="700" fill="currentColor">${m.label}</text>`);
+  }
 
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Graph of a function for the question');
+  svg.setAttribute('aria-label', spec.label || 'Graph for the question');
   svg.innerHTML = `<defs><clipPath id="${id}"><rect x="${pad}" y="${pad}" width="${W - 2 * pad}" height="${H - 2 * pad}"/></clipPath></defs>${parts.join('')}`;
   return svg;
 }
@@ -170,6 +240,8 @@ export const BIO = {
     },
   },
 };
+
+Object.assign(BIO, BIO2);
 
 function arrowMarkup([sx, sy], [ax, ay]) {
   const len = Math.hypot(ax - sx, ay - sy) || 1;
@@ -289,7 +361,7 @@ function renderAi(spec) {
 export function renderDiagram(spec) {
   const box = document.createElement('div');
   box.className = 'diagram';
-  try { box.append(spec.kind === 'graph' ? renderGraph(spec) : spec.kind === 'ai' ? renderAi(spec) : renderBio(spec)); }
+  try { box.append(spec.kind === 'graph' ? renderGraph(spec) : hasKind(spec.kind) ? renderKind(spec) : spec.kind === 'ai' ? renderAi(spec) : renderBio(spec)); }
   catch { box.textContent = '(diagram unavailable)'; }
   return box;
 }

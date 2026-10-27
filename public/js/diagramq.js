@@ -2,6 +2,7 @@
 // Quizzes and cue cards call diagramQuestions() / diagramCards() with the student's notes; if the notes
 // are about cells or about functions, a few questions that need a diagram are added.
 import { BIO, evalF } from './diagrams.js';
+import { GENERATORS, detectExtra } from './diagramtopics.js';
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
@@ -17,11 +18,16 @@ const count = (text, words) => new Set((text.match(words) || []).map((w) => w.to
 
 export function detect(text) {
   const t = text || '';
-  const out = { bio: [], graph: [] };
+  const out = { bio: [], graph: [], extra: detectExtra(text || '') };
   const animal = count(t, /\b(cells?|organelles?|nucle(?:us|i)|mitochondri\w*|ribosom\w*|golgi|lysosom\w*|endoplasmic|cytoplasm|centriol\w*|cell membrane)\b/gi);
   const plant = count(t, /\b(chloroplasts?|cell walls?|vacuoles?|plant cells?)\b/gi);
   const neuron = count(t, /\b(neurons?|axons?|dendrites?|myelin|synapses?|ranvier|nervous system)\b/gi);
   if (neuron >= 2) out.bio.push('neuron');
+  if (count(t, /\b(dna|nucleotides?|double helix|phosphate groups?|deoxyribose|nitrogenous bases?|base pairs?|hydrogen bonds?)\b/gi) >= 2) out.bio.push('dna');
+  if (count(t, /\b(virus(es)?|viral|capsid|bacteriophages?|phages?|lytic|lysogenic|envelope|spike proteins?)\b/gi) >= 2) out.bio.push(/phage/i.test(t) ? 'phage' : 'virus');
+  if (count(t, /\b(bacteri\w+|prokaryot\w*|flagell\w+|plasmids?|capsules?|nucleoid|pili|pilus|coccus|cocci|bacillus|bacilli)\b/gi) >= 2) out.bio.push('bacterium');
+  if (count(t, /\b(flowers?|petals?|sepals?|stamens?|pistils?|carpels?|anthers?|filaments?|stigma|ovary|ovules?|receptacle)\b/gi) >= 2) out.bio.push('flower');
+  if (count(t, /\b(fung(i|us|al)|hyph\w+|mycel\w+|mushrooms?|gills|stipe|spores?)\b/gi) >= 2) out.bio.push('mushroom');
   if (plant >= 1) out.bio.push('plant-cell');
   if (animal >= 2 && (plant === 0 || /animal cells?/i.test(t))) out.bio.push('animal-cell');
 
@@ -281,31 +287,38 @@ function toQuestion(p, types) {
   const options = [];
   if (types.includes('mc')) options.push('mc', 'mc', 'mc');
   if (types.includes('short')) options.push('short');
-  if (p.kind === 'name' && types.includes('tf')) options.push('tf');
-  if (p.kind === 'name' && types.includes('fill')) options.push('fill');
+  if ((p.kind === 'name' || p.tf) && types.includes('tf')) options.push('tf');
+  if ((p.kind === 'name' || p.fill) && types.includes('fill')) options.push('fill');
   if (!options.length) return null;
   const type = pick(options);
-  const base = { explanation: p.explain, topic: p.kind === 'graph' ? 'Graphs' : 'Diagrams', diagram: p.diagram };
+  const base = { explanation: p.explain, topic: p.topic || (p.kind === 'graph' ? 'Graphs' : 'Diagrams'), diagram: p.diagram };
   if (type === 'mc') {
     const opts = shuffle([p.answer, ...p.wrong.slice(0, 3)]);
     return { ...base, type, q: p.prompt, options: opts, answer: opts.indexOf(p.answer) };
   }
   if (type === 'short') return { ...base, type, q: p.prompt, answer: p.kind === 'name' ? p.backText : p.answer };
   if (type === 'tf') {
+    if (p.tf) return { ...base, type, q: p.tf.q, answer: p.tf.answer };
     const truth = Math.random() < 0.5;
     const named = truth ? p.name : p.others[0];
     return { ...base, type, q: `The arrow points to the ${named}.`, answer: truth };
   }
+  if (p.fill) return { ...base, type: 'fill', q: p.fill.q, answer: p.fill.answer };
   return { ...base, type: 'fill', q: 'The arrow points to the _____.', answer: p.name };
 }
 
-const toCard = (p) => ({ q: p.prompt, a: p.kind === 'graph' ? `${p.answer}\n${p.explain}` : p.backText, topic: p.kind === 'graph' ? 'Graphs' : 'Diagrams', diagram: p.diagram, weak: false });
+const toCard = (p) => ({ q: p.prompt, a: p.kind === 'name' ? p.backText : `${p.answer}\n${p.explain}`, topic: p.topic || (p.kind === 'graph' ? 'Graphs' : 'Diagrams'), diagram: p.diagram, weak: false });
 
 // `extra` is a list of problem lists for pictures the AI designed (see aidiagram.js). Lists are taken in turn,
 // so a quiz on several topics gets different pictures; one picture repeats only when its own parts run out.
 function pool(text, extra = []) {
   const d = detect(text);
-  const lists = [...d.bio.map((id) => bioProblems(id, text)), ...(d.graph.length ? [graphProblems(d.graph)] : []), ...extra];
+  const made = d.extra.map((id) => {
+    const seen = new Set(); const list = [];
+    for (let i = 0; i < 4; i++) for (const p of GENERATORS[id]?.() || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); list.push(p); } }
+    return shuffle(list);
+  }).filter((l) => l.length);
+  const lists = [...d.bio.map((id) => bioProblems(id, text)), ...(d.graph.length ? [graphProblems(d.graph)] : []), ...made, ...extra];
   const out = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
   return out;
@@ -322,8 +335,13 @@ export function diagramQuestions({ text, types, count, extra }) {
 
 export function diagramCards({ text, extra = [] }) {
   const d = detect(text);
-  const bio = d.bio.flatMap((id) => bioProblems(id, text).filter((p) => p.kind === 'name').slice(0, 6));
+  const bio = d.bio.flatMap((id) => bioProblems(id, text).filter((p) => p.kind === 'name').slice(0, d.bio.length > 2 ? 3 : 6));
   const graphs = d.graph.length ? graphProblems(d.graph).slice(0, 4) : [];
   const ai = extra.flatMap((l) => l.filter((p) => p.kind === 'name').slice(0, 6));
-  return [...bio, ...graphs, ...ai].map(toCard);
+  // a couple of cards from each detected picture type, taken in turn, so no topic crowds out the plain cards
+  const lists = d.extra.map((id) => { const seen = new Set(); const list = []; for (let i = 0; i < 3 && list.length < 3; i++) for (const p of GENERATORS[id]?.() || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k) && list.length < 3) { seen.add(k); list.push(p); } } return list; }).filter((l) => l.length);
+  const room = Math.max(0, 16 - bio.length - graphs.length - ai.length);
+  const more = [];
+  for (let i = 0; more.length < room && lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length && more.length < room) more.push(l[i]);
+  return [...bio, ...graphs, ...ai, ...more].map(toCard);
 }
