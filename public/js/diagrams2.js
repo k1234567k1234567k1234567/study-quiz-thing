@@ -4,7 +4,7 @@
 const NS = 'http://www.w3.org/2000/svg';
 const T = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const col = (name) => `var(--${name})`;
-const text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 13}" text-anchor="${o.anchor || 'middle'}" font-weight="${o.bold ? 700 : 400}"${o.italic ? ' font-style="italic"' : ''} style="fill:${o.color ? col(o.color) : 'currentColor'}">${T(s)}</text>`;
+const text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 13}" text-anchor="${o.anchor || 'middle'}" font-weight="${o.bold ? 700 : 400}"${o.italic ? ' font-style="italic"' : ''} style="fill:${o.color ? col(o.color) : 'currentColor'}" paint-order="stroke" stroke="var(--surface)" stroke-width="3" stroke-linejoin="round">${T(s)}</text>`;
 const line = (x1, y1, x2, y2, o = {}) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:${o.color ? col(o.color) : 'currentColor'}" stroke-opacity="${o.op ?? 1}" stroke-width="${o.w || 2}" stroke-linecap="round"${o.dash ? ' stroke-dasharray="6 5"' : ''}/>`;
 
 function svgOf(w, h, inner, label) {
@@ -132,8 +132,10 @@ function renderAngle(spec) {
   s += text(sx(0) + Math.cos(mid) * (arcR + 15), sy(0) - Math.sin(mid) * (arcR + 15) + 4, spec.thetaLabel || 'θ', { size: 14, bold: true, color: 'accent' });
   s += `<circle cx="${sx(px)}" cy="${sy(py)}" r="5.5" style="fill:${col('primary')};stroke:var(--surface)" stroke-width="2"/>`;
   if (spec.pointLabel) {
-    const lx = sx(px) + (px >= 0 ? 9 : -9);
-    s += text(lx, sy(py) + (py >= 0 ? -9 : 17), spec.pointLabel, { size: 13, bold: true, anchor: px >= 0 ? 'start' : 'end' });
+    const left = px < 0 && sx(px) > 96; // plenty of room on the left; otherwise write the label to the right
+    const lx = sx(px) + (left ? -9 : px >= 0 && sx(px) > S - 86 ? -9 : 9);
+    const anchor = left || (px >= 0 && sx(px) > S - 86) ? 'end' : 'start';
+    s += text(lx, sy(py) + (py >= 0 ? -9 : 17), spec.pointLabel, { size: 13, bold: true, anchor });
   }
   if (spec.arrow) {
     const dx = sx(px) - c; const dy = sy(py) - c; const l = Math.hypot(dx, dy) || 1;
@@ -478,9 +480,88 @@ function renderBactShape(spec) {
   return svgOf(360, 260, s, 'Bacteria under a microscope');
 }
 
+
+/* ---------------- shapes with algebraic or radical sides ---------------- */
+
+function renderShape(spec) {
+  const W = 360; const H = 250; let s = '';
+  if (spec.shape === 'rect') {
+    s += `<rect x="60" y="56" width="240" height="130" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="3"/>`;
+    s += text(180, 42, spec.w, { bold: true, size: 15 }) + text(312, 126, spec.h, { bold: true, size: 15, anchor: 'start' });
+  } else if (spec.shape === 'square') {
+    s += `<rect x="105" y="50" width="150" height="150" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="3"/>`;
+    s += text(180, 38, spec.s, { bold: true, size: 15 }) + text(268, 130, spec.s, { bold: true, size: 15, anchor: 'start' });
+    s += '<g stroke="currentColor" stroke-width="2.5"><line x1="180" y1="44" x2="180" y2="56"/><line x1="249" y1="125" x2="261" y2="125"/></g>';
+  } else if (spec.shape === 'circle') {
+    s += `<circle cx="180" cy="125" r="92" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="3"/><circle cx="180" cy="125" r="4" fill="currentColor"/>`;
+    s += line(180, 125, 272, 125, { color: 'primary', w: 3.5 }) + text(226, 114, spec.r, { bold: true, size: 15, color: 'primary' }) + text(180, 150, 'centre', { size: 11, color: 'muted' });
+  } else if (spec.shape === 'triangles') {
+    const n = spec.tris.length; const w = n === 1 ? 240 : 124; const gap = n === 1 ? 0 : 60;
+    const x0 = (W - (n * w + (n - 1) * gap)) / 2;
+    spec.tris.forEach((t, i) => {
+      const bx = x0 + i * (w + gap); const by = 206; const apexX = bx + w * 0.38; const apexY = 56;
+      s += `<polygon points="${bx},${by} ${bx + w},${by} ${apexX},${apexY}" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>`;
+      s += line(apexX, apexY, apexX, by, { dash: true, w: 1.8, op: 0.6 }) + `<polyline points="${apexX + 10},${by} ${apexX + 10},${by - 10} ${apexX},${by - 10}" fill="none" stroke="currentColor" stroke-width="1.6"/>`;
+      s += text(bx + w / 2, by + 20, t.base, { bold: true, size: 14 }) + text(apexX + 6, (apexY + by) / 2, t.height, { bold: true, size: 14, anchor: 'start' });
+      if (t.name) s += text(apexX, apexY - 8, t.name[0], { bold: true }) + text(bx - 10, by + 4, t.name[1], { bold: true }) + text(bx + w + 10, by + 4, t.name[2], { bold: true });
+    });
+  }
+  return svgOf(W, H, s, 'A shape with labelled side lengths');
+}
+
+/* ---------------- CAST diagram ---------------- */
+
+function renderCast(spec) {
+  const c = 170; let s = `<circle cx="${c}" cy="130" r="104" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="2.5"/>` + line(c - 116, 130, c + 116, 130, { op: 0.7, w: 1.8 }) + line(c, 14, c, 246, { op: 0.7, w: 1.8 });
+  const L = [['A', 'All', 1, c + 52, 82], ['S', 'Sine', 2, c - 52, 82], ['T', 'Tangent', 3, c - 52, 188], ['C', 'Cosine', 4, c + 52, 188]];
+  L.forEach(([ch, , q, x, y]) => {
+    const hid = spec.hide === q;
+    s += `<circle cx="${x}" cy="${y}" r="26" style="fill:var(--surface);stroke:${hid ? col('accent') : col('primary')}" stroke-width="2.5"/>` + text(x, y + 8, hid ? '?' : ch, { bold: true, size: 24, color: hid ? 'accent' : undefined });
+    s += text(x + (q === 1 || q === 4 ? 40 : -40), y + (q < 3 ? -34 : 44), ['', 'I', 'II', 'III', 'IV'][q], { size: 12, color: 'muted' });
+  });
+  return svgOf(340, 260, s, 'The CAST diagram: which trig ratios are positive in each quadrant');
+}
+
+/* ---------------- angles of elevation and depression ---------------- */
+
+// spec: { type:'elevation'|'depression'|'two', angle, angle2, hLabel, dLabel, sLabel }
+function renderElev(spec) {
+  const W = 380; const H = 260; const gy = 222; const rad = (d) => (d * Math.PI) / 180;
+  let s = line(8, gy, W - 8, gy, { w: 3, op: 0.7 });
+  const arcAt = (cx, cy, r, from, to) => { let d = ''; for (let i = 0; i <= 24; i++) { const a = from + ((to - from) * i) / 24; d += `${i ? 'L' : 'M'}${(cx + Math.cos(a) * r).toFixed(1)} ${(cy - Math.sin(a) * r).toFixed(1)} `; } return `<path d="${d}" fill="none" style="stroke:${col('accent')}" stroke-width="2.5"/>`; };
+  const person = (x, y) => `<circle cx="${x}" cy="${y - 20}" r="5" fill="currentColor"/><line x1="${x}" y1="${y - 15}" x2="${x}" y2="${y}" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`;
+  if (spec.type === 'elevation') {
+    const th = rad(spec.angle); const dy = Math.min(150, 250 * Math.tan(th)); const dx = dy / Math.tan(th);
+    const ox = 40; const eyeY = gy - 18; const tx = ox + dx; const ty = eyeY - dy;
+    s += `<rect x="${tx - 16}" y="${ty}" width="32" height="${gy - ty}" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-opacity=".6" stroke-width="2.5"/>` + person(ox, gy);
+    s += line(ox, eyeY, tx, eyeY, { dash: true, w: 1.8, op: 0.6 }) + line(ox, eyeY, tx, ty, { color: 'primary', w: 3.5 });
+    s += arcAt(ox, eyeY, 46, 0, th) + text(ox + 64, eyeY - 8, spec.angleLabel || `${spec.angle}°`, { bold: true, color: 'accent', anchor: 'start' });
+    s += text(tx + 24, (ty + gy) / 2, spec.hLabel, { bold: true, size: 14, anchor: 'start' }) + text((ox + tx) / 2, gy + 24, spec.dLabel, { bold: true, size: 14 });
+  } else if (spec.type === 'depression') {
+    const th = rad(spec.angle); const dy = Math.min(150, 250 * Math.tan(th)); const dx = dy / Math.tan(th);
+    const eyeY = gy - dy - 12; const ex = 96; const bx = ex + dx; const by = gy - 12;
+    s += `<rect x="14" y="${eyeY + 16}" width="94" height="${gy - eyeY - 16}" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-opacity=".6" stroke-width="2.5"/>` + person(ex - 6, eyeY + 16);
+    s += `<path d="M${bx - 22} ${gy} L${bx + 22} ${gy} L${bx + 14} ${by + 2} L${bx - 14} ${by + 2} Z" fill="currentColor" fill-opacity=".25" stroke="currentColor" stroke-opacity=".7" stroke-width="2"/>`;
+    s += line(ex, eyeY, W - 40, eyeY, { dash: true, w: 1.8, op: 0.6 }) + line(ex, eyeY, bx, by, { color: 'primary', w: 3.5 });
+    s += arcAt(ex, eyeY, 50, -th, 0) + text(ex + 62, eyeY + 26, spec.angleLabel || `${spec.angle}°`, { bold: true, color: 'accent', anchor: 'start' });
+    s += text(116 + 4, (eyeY + gy) / 2, spec.hLabel, { bold: true, size: 14, anchor: 'start' }) + text((ex + bx) / 2, gy + 24, spec.dLabel, { bold: true, size: 14 });
+  } else {
+    const a1 = rad(spec.angle); const a2 = rad(spec.angle2); const Ht = 110; const tx = 312;
+    const xB = tx - Ht / Math.tan(a2); const xA = tx - Ht / Math.tan(a1); const ty = gy - Ht;
+    s += `<rect x="${tx - 14}" y="${ty}" width="28" height="${Ht}" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-opacity=".6" stroke-width="2.5"/>`;
+    s += line(xA, gy, tx, ty, { color: 'primary', w: 3 }) + line(xB, gy, tx, ty, { color: 'bad', w: 3 });
+    s += arcAt(xA, gy, 40, 0, a1) + text(xA + 52, gy - 6, spec.angleLabel || `${spec.angle}°`, { bold: true, color: 'accent', anchor: 'start' });
+    s += arcAt(xB, gy, 30, 0, a2) + text(xB + 4, gy - 36, spec.angle2Label || `${spec.angle2}°`, { bold: true, color: 'accent', anchor: 'start' });
+    s += `<circle cx="${xA}" cy="${gy}" r="4.5" fill="currentColor"/><circle cx="${xB}" cy="${gy}" r="4.5" fill="currentColor"/>` + text(xA, gy + 20, 'A', { bold: true }) + text(xB, gy + 20, 'B', { bold: true });
+    s += line(xA, gy + 34, xB, gy + 34, { w: 1.8, op: 0.7 }) + text((xA + xB) / 2, gy + 50, spec.sLabel, { bold: true, size: 14 });
+    s += text(tx + 22, (ty + gy) / 2, spec.hLabel, { bold: true, size: 14, anchor: 'start' });
+  }
+  return svgOf(W, H + (spec.type === 'two' ? 26 : 0), s, 'A diagram with an angle of elevation or depression');
+}
+
 /* ---------------- entry ---------------- */
 
-const KINDS = { mapping: renderMapping, fbd: renderFbd, tri: renderTriangle, angle: renderAngle, ambig: renderAmbig, pascal: renderPascal, punnett: renderPunnett, pedigree: renderPedigree, mitosis: renderMitosis, circuit: renderCircuit, meiosis: renderMeiosis, cycle: renderCycle, taxon: renderTaxon, karyo: renderKaryotype, homologs: renderHomologs, plantkey: renderPlantKey, leaf: renderLeaf, symmetry: renderSymmetry, bactshape: renderBactShape };
+const KINDS = { mapping: renderMapping, fbd: renderFbd, tri: renderTriangle, angle: renderAngle, ambig: renderAmbig, pascal: renderPascal, punnett: renderPunnett, pedigree: renderPedigree, mitosis: renderMitosis, circuit: renderCircuit, meiosis: renderMeiosis, cycle: renderCycle, taxon: renderTaxon, karyo: renderKaryotype, homologs: renderHomologs, plantkey: renderPlantKey, leaf: renderLeaf, symmetry: renderSymmetry, bactshape: renderBactShape, shape: renderShape, cast: renderCast, elev: renderElev };
 
 export const hasKind = (k) => k in KINDS;
 export const renderKind = (spec) => KINDS[spec.kind](spec);

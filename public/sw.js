@@ -1,5 +1,5 @@
 // App-shell cache so the site opens offline. API calls always go to the network.
-const CACHE = 'studyhub-v5';
+const CACHE = 'studyhub-v6';
 const SHELL = ['/', '/css/styles.css', '/js/app.js', '/js/ui.js', '/js/store.js', '/js/ai.js', '/js/prompts.js', '/js/pipeline.js', '/js/generate.js', '/js/images.js', '/js/ocr.js', '/js/pdf.js', '/js/diagrams.js', '/js/diagramq.js', '/js/aidiagram.js', '/js/dutil.js', '/js/diagrams2.js', '/js/diagramq2.js', '/js/diagramq3.js', '/js/diagramq4.js', '/js/diagramtopics.js', '/js/biopics.js', '/js/topics.js', '/icon.svg'];
 
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));

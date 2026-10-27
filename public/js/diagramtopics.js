@@ -29,6 +29,12 @@ const RULES = [
   ['ftype', (t) => words(t, /\b(linear|quadratic|exponential)\b/gi) >= 2 && has(t, /function|graph|equation/i)],
   ['seq', (t) => has(t, /(arithmetic|geometric)\s+(sequence|series)|common (difference|ratio)|recursive (formula|sequence)|explicit formula/i)],
   ['linquad', (t) => has(t, /linear[- ]quadratic|points? of intersection|line and (a )?parabola|systems? of (a )?line/i)],
+  ['algarea', (t) => has(t, /polynomials?|binomials?|trinomials?|rational expressions?|factor(ing)?/i) && has(t, /area|expand|simplif/i)],
+  ['radshape', (t) => has(t, /radicals?|\u221a/i) && has(t, /area|perimeter|rectangle|triangle|square|circle/i)],
+  ['disc', (t) => has(t, /discriminant|nature of the roots|real roots/i)],
+  ['quadread', (t) => has(t, /(maximum|minimum) (height|value|revenue|area|cost)|completing the square|vertex form|projectile|quadratic (functions?|equations?)/i)],
+  ['drpiece', (t) => has(t, /\bdomain\b/i) && has(t, /\brange\b/i) && has(t, /\b(function|graph|set notation)\b/i)],
+  ['elev', (t) => has(t, /angles? of (elevation|depression)|lighthouse|line of sight/i)],
   ['pascal', (t) => has(t, /pascal|binomial (expansion|theorem)|expand(ing)? (a )?binomials?/i)],
   // ----- physics -----
   ['fbd', (t) => words(t, /\b(free[- ]body|force diagrams?|net force|normal force|tension|friction|applied force|weight|newtons?|gravitational force|Fnet|F_net)\b/gi) >= 2],

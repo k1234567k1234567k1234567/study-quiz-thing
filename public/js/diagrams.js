@@ -107,20 +107,21 @@ function renderGraph(spec) {
   if (spec.diag) clipped.push(draw(`M${sx(x0)} ${sy(x0)} L${sx(x1)} ${sy(x1)}`, 'muted', 1.8, true));
   if (spec.vline != null) clipped.push(draw(`M${sx(spec.vline)} ${pad} L${sx(spec.vline)} ${H - pad}`, 'accent', 2, true));
   if (spec.hline != null) clipped.push(draw(`M${pad} ${sy(spec.hline)} L${W - pad} ${sy(spec.hline)}`, 'accent', 2, true));
-  for (const c of spec.curves || []) clipped.push(draw(curvePath(c.f, c.from, c.to), c.color || 'accent', c.dash ? 2.5 : 3, c.dash));
-  if (spec.rel?.type === 'circle') {
-    const r = spec.rel;
-    clipped.push(`<ellipse cx="${sx(r.cx)}" cy="${sy(r.cy)}" rx="${Math.abs(sx(r.cx + r.r) - sx(r.cx))}" ry="${Math.abs(sy(r.cy + r.r) - sy(r.cy))}" fill="none" style="stroke:${css('primary')}" stroke-width="3"/>`);
-  } else if (spec.rel?.type === 'side') {
-    const r = spec.rel; // x = a(y - k)^2 + h
-    let d = '';
-    for (let i = 0; i <= 400; i++) {
-      const y = y0 + ((y1 - y0) * i) / 400;
-      const x = r.a * (y - r.k) ** 2 + r.h;
-      d += `${i ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `;
+  // relations that are not functions of x: circle, sideways parabola, vertical / horizontal line
+  const relEl = (r, color, dash, width) => {
+    if (r.type === 'circle') return `<ellipse cx="${sx(r.cx)}" cy="${sy(r.cy)}" rx="${Math.abs(sx(r.cx + r.r) - sx(r.cx))}" ry="${Math.abs(sy(r.cy + r.r) - sy(r.cy))}" fill="none" style="stroke:${css(color)}" stroke-width="${width}"${dash ? ' stroke-dasharray="7 6"' : ''}/>`;
+    if (r.type === 'side') { // x = a(y - k)^2 + h
+      let d = '';
+      for (let i = 0; i <= 400; i++) { const y = y0 + ((y1 - y0) * i) / 400; const x = r.a * (y - r.k) ** 2 + r.h; d += `${i ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(y).toFixed(1)} `; }
+      return draw(d, color, width, dash);
     }
-    clipped.push(draw(d, 'primary', 3));
-  } else if (spec.f) clipped.push(draw(curvePath(spec.f, spec.from, spec.to), 'primary', 3));
+    if (r.type === 'vert') return draw(`M${sx(r.x)} ${pad} L${sx(r.x)} ${H - pad}`, color, width, dash);
+    if (r.type === 'horz') return draw(`M${pad} ${sy(r.y)} L${W - pad} ${sy(r.y)}`, color, width, dash);
+    return '';
+  };
+  for (const c of spec.curves || []) clipped.push(c.rel ? relEl(c.rel, c.color || 'accent', c.dash, c.dash ? 2.5 : 3) : draw(curvePath(c.f, c.from, c.to), c.color || 'accent', c.dash ? 2.5 : 3, c.dash));
+  if (spec.rel) clipped.push(relEl(spec.rel, 'primary', false, 3));
+  else if (spec.f) clipped.push(draw(curvePath(spec.f, spec.from, spec.to), 'primary', 3));
   parts.push(`<g clip-path="url(#${id})">${clipped.join('')}</g>`);
 
   // end dots: closed = filled, open = hollow

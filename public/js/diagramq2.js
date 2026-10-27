@@ -250,6 +250,27 @@ export function transformProblems() {
     explain: 'Move the dashed graph’s domain and range through the same transformation: stretches multiply, reflections flip, translations shift.',
     check: { base, t },
   });
+  if (base === 'zig') {
+    const u = pick([-4, -2, 0, 2, 4]); const v = zigAt(u);
+    const ix = t.d + u / t.k; const iy = t.a * v + t.c; const img = pointStr(ix, iy);
+    if (Math.abs(ix) <= 7.5 && Math.abs(iy) <= 7.5) {
+      const mist = [pointStr(t.d + u * t.k, iy), pointStr(-t.d + u / t.k, iy), pointStr(ix, t.a * (v + t.c)), pointStr(ix, t.a * v - t.c), pointStr(u / t.k - t.d, iy), pointStr(iy, ix)];
+      out.push({
+        kind: 'graph', topic, diagram: { ...diagram, marks: [{ x: u, y: v, label: 'A', color: 'accent' }, ...marks] },
+        prompt: `Point A(${num(u)}, ${num(v)}) is on the dashed graph y = f(x). What are the coordinates of its image on the solid graph, ${correct}?`, answer: img,
+        wrong: withWrong(img, [...new Set(mist)].filter((x) => x !== img), (i) => pointStr(ix + i, iy)),
+        explain: `Apply the transformation to the point: x becomes ${t.d ? `x \u00f7 ${num(t.k)} + ${num(t.d)}` : `x \u00f7 ${num(t.k)}`} and y becomes ${num(t.a)}y${t.c ? ` + ${num(t.c)}` : ''}. So (${num(u)}, ${num(v)}) \u2192 ${img}.`,
+        check: { image: [ix, iy] },
+      });
+    }
+  } else {
+    const BASEEQ = { quad: 'y = x\u00b2', sqrt: 'y = \u221ax', abs: 'y = |x|', recip: 'y = 1/x' };
+    out.push({
+      kind: 'graph', topic: 'Parent functions', diagram: { kind: 'graph', f: f0, view: VIEW }, prompt: 'Which parent function is graphed?', answer: BASEEQ[base],
+      wrong: [...Object.keys(BASEEQ).filter((k) => k !== base).map((k) => BASEEQ[k]), 'y = x'].slice(0, 3),
+      explain: base === 'quad' ? 'A U-shaped parabola through the origin: y = x\u00b2.' : base === 'sqrt' ? 'Half a sideways parabola that starts at the origin and goes up to the right: y = \u221ax.' : base === 'abs' ? 'A V shape with its point at the origin: y = |x|.' : 'Two curves in opposite corners that approach the axes (asymptotes at x = 0 and y = 0): y = 1/x.',
+    });
+  }
   return out;
 }
 
@@ -298,6 +319,25 @@ export function inverseProblems() {
       explain: 'The domain of the inverse is the range of f, and the range of the inverse is the domain of f. The x- and y-values swap.',
     });
   }
+  // inverse of a parabola: a sideways parabola, which is not a function
+  if (Math.random() < 0.6) {
+    const a2 = pick([1, -1]); const h2 = rnd(-2, 2); const k2 = rnd(-2, 2);
+    const par = { type: 'quad', a: a2, h: h2, k: k2 };
+    const dia = { kind: 'graph', f: par, curves: [{ rel: { type: 'side', a: a2, h: k2, k: h2 }, dash: true, color: 'accent' }], diag: true, view: VIEW };
+    out.push({
+      kind: 'graph', topic, diagram: dia, prompt: 'The solid curve is f(x) and the dashed curve is its inverse (the reflection of f in y = x). Is the inverse also a function?',
+      answer: 'No: the dashed graph fails the vertical line test',
+      wrong: ['Yes: it passes the vertical line test', 'Yes: every parabola has a function as its inverse', 'Only if a > 0'],
+      explain: 'Reflecting a parabola in y = x gives a sideways parabola. A vertical line crosses it twice, so the inverse is not a function.',
+      tf: { q: 'The inverse of this parabola is a function.', answer: false },
+    });
+    const right = `x \u2265 ${num(h2)}`;
+    out.push({
+      kind: 'graph', topic, diagram: dia, prompt: 'Which restriction on the domain of f makes its inverse a function?', answer: right,
+      wrong: ['all real numbers', `x \u2265 ${num(h2 - 2)}`, `x \u2264 ${num(h2 + 2)}`],
+      explain: `Keep only one side of the parabola, starting at the vertex's x-value ${num(h2)}: then f passes the horizontal line test and its inverse passes the vertical line test.`,
+    });
+  }
   return out;
 }
 
@@ -305,6 +345,7 @@ export function inverseProblems() {
 
 const TRIPLES = [[3, 4, 5], [5, 12, 13], [8, 15, 17], [6, 8, 10], [7, 24, 25], [9, 12, 15], [20, 21, 29]];
 const RATIO_NAMES = ['sin', 'cos', 'tan'];
+const RATIO6 = ['sin', 'cos', 'tan', 'sin', 'cos', 'tan', 'csc', 'sec', 'cot'];
 
 // A is at the top, B bottom right, C the right angle at the bottom left. a = BC, b = CA, c = AB.
 const rightTri = (a, b) => ({ pts: [[0, b], [a, 0], [0, 0]], v: ['A', 'B', 'C'], right: 2 });
@@ -314,15 +355,15 @@ export function rightTriProblems() {
   const [a, b, c] = pick(TRIPLES);
   const atA = Math.random() < 0.5;
   const opp = atA ? a : b; const adj = atA ? b : a;
-  const ratios = { sin: frac(opp, c), cos: frac(adj, c), tan: frac(opp, adj) };
-  const wh = pick(RATIO_NAMES);
+  const ratios = { sin: frac(opp, c), cos: frac(adj, c), tan: frac(opp, adj), csc: frac(c, opp), sec: frac(c, adj), cot: frac(adj, opp) };
+  const wh = pick(RATIO6);
   const mk = (num_, den) => frac(num_, den);
   const all = [mk(opp, c), mk(adj, c), mk(opp, adj), mk(c, opp), mk(c, adj), mk(adj, opp)];
   const diagram = { kind: 'tri', ...rightTri(a, b), sides: [String(a), String(b), String(c)], angles: atA ? ['θ', '', ''] : ['', 'θ', ''] };
   out.push({
     kind: 'graph', topic, diagram, prompt: `In the right triangle shown, what is ${wh} θ?`, answer: ratios[wh],
     wrong: withWrong(ratios[wh], all.filter((x) => x !== ratios[wh]), (i) => frac(opp + i, c)),
-    explain: `SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent. Here the side opposite θ is ${opp}, the adjacent side is ${adj} and the hypotenuse is ${c}.`,
+    explain: `SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent; csc, sec and cot are the reciprocals of sin, cos and tan. Here the side opposite θ is ${opp}, the adjacent side is ${adj} and the hypotenuse is ${c}.`,
   });
   // missing side with an angle
   const ang = rnd(25, 65); const hyp = rnd(8, 20);
@@ -392,13 +433,13 @@ export function angleProblems() {
   const ref = (Math.atan(uy / ux) * 180) / Math.PI;
   const diagram = { kind: 'angle', R: Math.max(ux, uy) + 1, P: [x, y], theta, pointLabel: `P(${num(x)}, ${num(y)})` };
   const out = []; const topic = 'Angles in standard position';
-  const vals = { sin: frac(y, r), cos: frac(x, r), tan: frac(y, x) };
-  const wh = pick(RATIO_NAMES);
-  const pool = [frac(-y, r), frac(-x, r), frac(x, r), frac(y, r), frac(x, y), frac(-y, x), frac(r, y)];
+  const vals = { sin: frac(y, r), cos: frac(x, r), tan: frac(y, x), csc: frac(r, y), sec: frac(r, x), cot: frac(x, y) };
+  const wh = pick(RATIO6);
+  const pool = [frac(-y, r), frac(-x, r), frac(x, r), frac(y, r), frac(x, y), frac(-y, x), frac(r, y), frac(r, x), frac(-r, y)];
   out.push({
     kind: 'graph', topic, diagram, prompt: `The terminal arm of angle θ passes through P(${num(x)}, ${num(y)}), so r = ${r}. What is ${wh} θ?`, answer: vals[wh],
     wrong: withWrong(vals[wh], pool.filter((s) => s !== vals[wh]), (i) => frac(x + i, r)),
-    explain: `sin θ = y/r, cos θ = x/r and tan θ = y/x. With x = ${num(x)}, y = ${num(y)} and r = ${r}: sin θ = ${vals.sin}, cos θ = ${vals.cos}, tan θ = ${vals.tan}.`,
+    explain: `sin θ = y/r, cos θ = x/r and tan θ = y/x, and csc θ = r/y, sec θ = r/x, cot θ = x/y. With x = ${num(x)}, y = ${num(y)} and r = ${r}: sin θ = ${vals.sin}, cos θ = ${vals.cos}, tan θ = ${vals.tan}, csc θ = ${vals.csc}, sec θ = ${vals.sec}, cot θ = ${vals.cot}.`,
     fill: { q: `${wh} θ = _____`, answer: vals[wh] },
   });
   const qa = `Quadrant ${q}`;
@@ -412,6 +453,13 @@ export function angleProblems() {
     kind: 'graph', topic, diagram, prompt: 'Use the CAST rule. Which primary trig ratios are positive for this angle?', answer: CAST[q],
     wrong: [1, 2, 3, 4].filter((n) => n !== q).map((n) => CAST[n]),
     explain: `CAST: in quadrant 1 all are positive, quadrant 2 sine, quadrant 3 tangent, quadrant 4 cosine. This angle is in quadrant ${q}.`,
+  });
+  const CT = { 1: 'A (all three are positive)', 2: 'S (sine is positive)', 3: 'T (tangent is positive)', 4: 'C (cosine is positive)' };
+  const cq = rnd(1, 4);
+  out.push({
+    kind: 'graph', topic, diagram: { kind: 'cast', hide: cq }, prompt: 'Which letter of CAST belongs in the quadrant marked "?"', answer: CT[cq],
+    wrong: [1, 2, 3, 4].filter((n) => n !== cq).map((n) => CT[n]),
+    explain: 'Starting in quadrant 1 and going counterclockwise the letters are A, S, T, C (All Students Take Calculus): all ratios positive, then sine, tangent, cosine.',
   });
   const refS = `${Math.round(ref)}${deg}`; const thS = `${Math.round(theta)}${deg}`;
   out.push({
@@ -693,8 +741,237 @@ export function linQuadProblems() {
   return out;
 }
 
+
+/* ================= Unit 1 and 2: algebraic areas, radicals, discriminant, parabola word graphs ================= */
+
+const linTerm = (a, b) => `${a === 1 ? 'x' : a === -1 ? `${MINUS}x` : `${num(a)}x`}${b ? signed(b) : ''}`;
+function polyText(A, B, C) {
+  const terms = [[A, 'x²'], [B, 'x'], [C, '']].filter(([c]) => c !== 0);
+  if (!terms.length) return '0';
+  return terms.map(([c, v], i) => {
+    const abs = Math.abs(c); const body = abs === 1 && v ? v : `${abs}${v}`;
+    return i === 0 ? `${c < 0 ? MINUS : ''}${body}` : ` ${c < 0 ? MINUS : '+'} ${body}`;
+  }).join('');
+}
+const simp = (n) => { let k = 1; let m = n; for (let f = 2; f * f <= m; f++) while (m % (f * f) === 0) { m /= f * f; k *= f; } return [k, m]; };
+const radText = (k, m) => (m === 1 ? String(k) : k === 1 ? `√${m}` : `${k}√${m}`);
+
+export function algAreaProblems() {
+  const out = []; const topic = 'Areas with algebra';
+  // rectangle with binomial sides
+  const a = rnd(1, 3); const c = rnd(1, 3); const b = pick([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]); const d = pick([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]);
+  const A = a * c; const B = a * d + b * c; const C = b * d;
+  const ans = polyText(A, B, C);
+  const wr = [polyText(A, a * d - b * c, C), polyText(A, B, -C), polyText(A, a * d + b * c + 1, C), polyText(a + c, B, C), polyText(A, a * d + c * b, b + d)].filter((x) => x !== ans);
+  out.push({
+    kind: 'graph', topic, diagram: { kind: 'shape', shape: 'rect', w: linTerm(a, b), h: linTerm(c, d) },
+    prompt: 'The sides of the rectangle are shown. Which expression gives its area, fully expanded?', answer: ans,
+    wrong: withWrong(ans, [...new Set(wr)], (i) => polyText(A, B + i, C)),
+    explain: `Area = length × width = (${linTerm(a, b)})(${linTerm(c, d)}). Multiply each term: ${polyText(A, B, C)}.`,
+  });
+  // one triangle: area = 1/2 base x height (base has even coefficients so the half works out)
+  const p = rnd(1, 3); const q = pick([-3, -2, -1, 1, 2, 3]); const r = rnd(1, 3); const t = pick([-4, -3, -2, -1, 1, 2, 3, 4]);
+  const TA = p * r; const TB = p * t + q * r; const TC = q * t;
+  const tAns = polyText(TA, TB, TC);
+  out.push({
+    kind: 'graph', topic, diagram: { kind: 'shape', shape: 'triangles', tris: [{ base: linTerm(2 * p, 2 * q), height: linTerm(r, t) }] },
+    prompt: 'Which expression gives the area of the triangle? (Area = ½ × base × height; expand fully.)', answer: tAns,
+    wrong: withWrong(tAns, [...new Set([polyText(2 * TA, 2 * TB, 2 * TC), polyText(TA, p * t - q * r, TC), polyText(TA, TB, -TC), polyText(TA, TB + 1, TC)])].filter((x) => x !== tAns), (i) => polyText(TA, TB + i, TC)),
+    explain: `½(${linTerm(2 * p, 2 * q)})(${linTerm(r, t)}) = (${linTerm(p, q)})(${linTerm(r, t)}) = ${tAns}.`,
+  });
+  // ratio of the areas of two triangles that share factors
+  const pb = rnd(1, 2); const qb = pick([-3, -2, 2, 3]); const rb = rnd(1, 2); const sb = pick([2, 3, 4]);
+  const c1 = pick([2, 3]); const d1 = pick([2, 3]); const d2 = pick([1, 2, 3].filter((v) => v !== d1));
+  const base = linTerm(pb, qb); const hgt = linTerm(rb, sb);
+  const k = frac(c1 * d1, d2);
+  const mulT = (m, a0, b0) => linTerm(m * a0, m * b0);
+  out.push({
+    kind: 'graph', topic,
+    diagram: { kind: 'shape', shape: 'triangles', tris: [{ name: 'ABC', base: mulT(c1, pb, qb), height: mulT(d1, rb, sb) }, { name: 'DEF', base, height: mulT(d2, rb, sb) }] },
+    prompt: 'Write the ratio of the area of triangle ABC to the area of triangle DEF in simplest form.', answer: k,
+    wrong: withWrong(k, [frac(d2, c1 * d1), frac(c1, d2), frac(d1, d2), frac(c1 * d1 + 1, d2), String(c1 * d1)].filter((x) => x !== k), (i) => frac(c1 * d1 + i, d2)),
+    explain: `Area ABC = ½(${mulT(c1, pb, qb)})(${mulT(d1, rb, sb)}) and Area DEF = ½(${base})(${mulT(d2, rb, sb)}). The factors (${base}) and (${hgt}) cancel, leaving ${c1}·${d1} ÷ ${d2} = ${k}.`,
+  });
+  return out;
+}
+
+export function radShapeProblems() {
+  const out = []; const topic = 'Radicals in shapes';
+  const R = [2, 3, 5, 6, 7, 10];
+  const val = (coef, r) => coef * Math.sqrt(r);
+  const wrongRad = (correct, cands) => { const cv = val(correct[0], correct[1]); return cands.filter(([k, m]) => m >= 1 && Math.abs(val(k, m) - cv) > 1e-9).map(([k, m]) => radText(k, m)); };
+  // rectangle p√m by q√n
+  { const p = rnd(1, 4); const q = rnd(1, 4); const m = pick(R); const n = pick(R);
+    const [kk, rr] = simp(m * n); const coef = p * q * kk; const ans = radText(coef, rr);
+    out.push({
+      kind: 'graph', topic, diagram: { kind: 'shape', shape: 'rect', w: radText(p, m), h: radText(q, n) },
+      prompt: 'Find the area of the rectangle in simplest radical form.', answer: ans,
+      wrong: withWrong(ans, wrongRad([coef, rr], [[p * q, m + n], [p + q, m * n], [coef, rr + 1], [coef + 1, rr], [p * q * m, n]]), (i) => radText(coef + i, rr)),
+      explain: `Area = (${radText(p, m)})(${radText(q, n)}) = ${p * q}√${m * n}${kk > 1 ? ` = ${p * q}(${kk})√${rr}` : ''} = ${ans}.`,
+      check: { kind: 'rect', coef, r: rr, p, q, m, n },
+    }); }
+  // right triangle with radical legs (one coefficient even so the half is whole)
+  { const p = pick([2, 4]); const q = rnd(1, 3); const m = pick(R); const n = pick(R);
+    const [kk, rr] = simp(m * n); const coef = (p * q * kk) / 2; const ans = radText(coef, rr);
+    const la = p * Math.sqrt(m); const lb = q * Math.sqrt(n);
+    out.push({
+      kind: 'graph', topic, diagram: { kind: 'tri', pts: [[0, lb], [la, 0], [0, 0]], v: ['', '', ''], right: 2, sides: [radText(p, m), radText(q, n), ''] },
+      prompt: 'The legs of the right triangle are shown. Find its area in simplest radical form.', answer: ans,
+      wrong: withWrong(ans, wrongRad([coef, rr], [[p * q * kk, rr], [coef, rr + 1], [coef * 2 + 1, rr], [p * q, m + n], [coef + 1, rr]]), (i) => radText(coef + i, rr)),
+      explain: `Area = ½ × (${radText(p, m)}) × (${radText(q, n)}) = ½(${p * q})√${m * n} = ${ans}.`,
+      check: { kind: 'tri', coef, r: rr, p, q, m, n },
+    }); }
+  // square with side k√m
+  { const k0 = rnd(2, 4); const m = pick(R); const ans = String(k0 * k0 * m);
+    out.push({
+      kind: 'graph', topic, diagram: { kind: 'shape', shape: 'square', s: radText(k0, m) },
+      prompt: 'Find the area of the square. (All sides are equal.)', answer: ans,
+      wrong: withWrong(ans, [String(k0 * k0 * Math.sqrt(m) | 0), String(k0 * m), String(2 * k0 * m), String(k0 * k0), String(k0 * k0 * m * m)].filter((x) => x !== ans), (i) => String(k0 * k0 * m + i)),
+      explain: `Area = side² = (${radText(k0, m)})² = ${k0}² × ${m} = ${ans}.`,
+      check: { kind: 'square', area: k0 * k0 * m },
+    }); }
+  // circle with radius √m
+  { const m = pick(R); const ans = `${m}π`;
+    out.push({
+      kind: 'graph', topic, diagram: { kind: 'shape', shape: 'circle', r: `r = √${m}` },
+      prompt: 'Find the exact area of the circle.', answer: ans,
+      wrong: withWrong(ans, [`${m * m}π`, `${2 * m}π`, `π√${m}`, `${m}π²`], (i) => `${m + i}π`),
+      explain: `Area = πr² = π(√${m})² = ${ans}.`,
+      check: { kind: 'circle', m },
+    }); }
+  return out;
+}
+
+export function discriminantProblems() {
+  const a = pick([1, -1, 2, -2, 0.5, -0.5]); const h = rnd(-3, 3);
+  const mode = pick(['two', 'one', 'none']);
+  const kk = mode === 'one' ? 0 : a > 0 ? (mode === 'two' ? -rnd(1, 4) : rnd(1, 4)) : (mode === 'two' ? rnd(1, 4) : -rnd(1, 4));
+  const f = { type: 'quad', a, h, k: kk };
+  const count = mode === 'two' ? 2 : mode === 'one' ? 1 : 0;
+  const diagram = { kind: 'graph', f, view: VIEW };
+  const topic = 'Nature of the roots';
+  const signA = count === 2 ? 'Positive: b² − 4ac > 0' : count === 1 ? 'Zero: b² − 4ac = 0' : 'Negative: b² − 4ac < 0';
+  const signs = ['Positive: b² − 4ac > 0', 'Zero: b² − 4ac = 0', 'Negative: b² − 4ac < 0'];
+  const out = [];
+  out.push({
+    kind: 'graph', topic, diagram, prompt: 'What is the sign of the discriminant (b² − 4ac) of this quadratic function?', answer: signA,
+    wrong: [...signs.filter((x) => x !== signA), 'It cannot be found from a graph'],
+    explain: count === 2 ? 'The graph crosses the x-axis twice: two real roots, so the discriminant is positive.' : count === 1 ? 'The graph just touches the x-axis once: one real root (a double root), so the discriminant is zero.' : 'The graph never touches the x-axis: no real roots, so the discriminant is negative.',
+  });
+  out.push({
+    kind: 'graph', topic, diagram, prompt: 'How many real roots (x-intercepts) does this quadratic have?', answer: String(count),
+    wrong: ['0', '1', '2', '3'].filter((x) => x !== String(count)),
+    explain: 'Real roots are the x-intercepts: where the graph meets the horizontal axis.',
+    tf: { q: 'This quadratic has two different real roots.', answer: count === 2 },
+  });
+  return out;
+}
+
+export function quadReadProblems() {
+  const [a, dd] = pick([[-1, 4], [-1, 6], [-1, 8], [-2, 4], [-2, 6]]);
+  const r1 = rnd(-3, 0); const r2 = r1 + dd;
+  const f = { type: 'quad', a, h: (r1 + r2) / 2, k: (-a * dd * dd) / 4 };
+  const vx = (r1 + r2) / 2; const vy = f.k;
+  const y0 = evalF(f, 0);
+  const lo = Math.min(-1, r1 - 1); const hi = r2 + 1;
+  const diagram = { kind: 'graph', f, view: [lo, hi, -Math.ceil(vy / 3), vy + 2], xlabel: 't (s)', ylabel: 'h (m)', size: [380, 320], from: r1 - 1, to: r2 + 1, label: 'Height of an object over time' };
+  const topic = 'Parabolas in context'; const out = [];
+  const fin = (ans, wr, expl, filler) => ({ kind: 'graph', topic, diagram, answer: ans, wrong: withWrong(ans, wr, filler), explain: expl });
+  out.push({ ...fin(`${num(vy)} m`, [`${num(vx)} m`, `${num(vy + 2)} m`, `${num(y0)} m`, `${num(r2)} m`], `The maximum height is the y-value of the vertex: ${num(vy)} m.`, (i) => `${num(vy + i + 2)} m`), prompt: 'The graph shows height h (metres) against time t (seconds). What is the maximum height?' });
+  out.push({ ...fin(`${num(vx)} s`, [`${num(vy)} s`, `${num(r2)} s`, `${num(vx + 1)} s`, `${num(r1)} s`], `The maximum happens at the vertex, at t = ${num(vx)} s (halfway between the roots).`, (i) => `${num(vx + i + 1)} s`), prompt: 'At what time does the object reach its maximum height?' });
+  out.push({ ...fin(`${num(r2)} s`, [`${num(r1)} s`, `${num(vx)} s`, `${num(r2 + 1)} s`, `${num(vy)} s`], `The object lands when h = 0 again: at the right-hand x-intercept, t = ${num(r2)} s.`, (i) => `${num(r2 + i + 1)} s`), prompt: 'When does the object hit the ground? (When is h = 0 for t > 0?)' });
+  if (y0 > 0) out.push({ ...fin(`${num(y0)} m`, [`${num(vy)} m`, '0 m', `${num(y0 + 2)} m`, `${num(-y0)} m`], `The starting height is the h-intercept (t = 0): ${num(y0)} m.`, (i) => `${num(y0 + i + 3)} m`), prompt: 'From what height was the object launched? (the h-intercept)' });
+  return out;
+}
+
+const PW_PROMPT = 'State the domain and range of the graph shown. (A hollow dot means the point is not included.)';
+export function drProblems() {
+  const topic = 'Domain and range from graphs'; const out = [];
+  const kind = pick(['pw', 'pw', 'pw', 'vert', 'horz']);
+  if (kind === 'vert') {
+    const c = rnd(-4, 4);
+    out.push({ kind: 'graph', topic, diagram: { kind: 'graph', rel: { type: 'vert', x: c }, view: VIEW }, prompt: 'State the domain and range of the relation shown.', answer: both(`x = ${num(c)}`, 'all real numbers'),
+      wrong: [both('all real numbers', `y = ${num(c)}`), both('all real numbers', 'all real numbers'), both(`x = ${num(c)}`, `y = ${num(c)}`)],
+      explain: `Every point has x = ${num(c)}, so the domain is just {${num(c)}}. The line goes up and down forever, so the range is all real numbers. It is not a function.`,
+      tf: { q: 'This vertical line is a function.', answer: false } });
+    return out;
+  }
+  if (kind === 'horz') {
+    const c = rnd(-4, 4);
+    out.push({ kind: 'graph', topic, diagram: { kind: 'graph', rel: { type: 'horz', y: c }, view: VIEW }, prompt: 'State the domain and range of the relation shown.', answer: both('all real numbers', `y = ${num(c)}`),
+      wrong: [both(`x = ${num(c)}`, 'all real numbers'), both('all real numbers', 'all real numbers'), both(`x = ${num(c)}`, `y = ${num(c)}`)],
+      explain: `The line goes left and right forever, so the domain is all real numbers. Every y-value is ${num(c)}, so the range is {${num(c)}}. It is a function.`,
+      tf: { q: 'This horizontal line is a function.', answer: true } });
+    return out;
+  }
+  for (let tries = 0; tries < 60; tries++) {
+    const xs = shuffle([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]).slice(0, 3).sort((p, q) => p - q);
+    if (xs[1] - xs[0] < 1 || xs[2] - xs[1] < 1) continue;
+    const ys = [rnd(-5, 5), rnd(-5, 5), rnd(-5, 5)];
+    if (new Set(ys).size < 3) continue;
+    const open0 = Math.random() < 0.4; const open2 = Math.random() < 0.4;
+    const closed = [!open0, true, !open2];
+    const lo = Math.min(...ys); const hi = Math.max(...ys);
+    const loOpen = !ys.some((y, i) => y === lo && closed[i]); const hiOpen = !ys.some((y, i) => y === hi && closed[i]);
+    const dom = ineq('x', xs[0], xs[2], open0, open2); const rg = ineq('y', lo, hi, loOpen, hiOpen);
+    const ans = both(dom, rg);
+    const pts = xs.map((x, i) => [x, ys[i]]);
+    out.push({
+      kind: 'graph', topic, diagram: { kind: 'graph', f: { type: 'pw', pts }, view: VIEW, marks: pts.map(([x, y], i) => ({ x, y, open: !closed[i], color: 'primary' })) }, prompt: PW_PROMPT, answer: ans,
+      wrong: withWrong(ans, [both(ineq('x', xs[0], xs[2], !open0, open2), rg), both(dom, ineq('y', lo, hi, !loOpen, hiOpen)), both(rg.replace(/y/g, 'x'), dom.replace(/x/g, 'y')), both(dom, ineq('y', Math.min(ys[0], ys[2]), Math.max(ys[0], ys[2]), open0, open2))], (i) => both(ineq('x', xs[0], xs[2] + i, open0, open2), rg)),
+      explain: 'The domain is the x-values the graph covers, left to right; the range is the y-values it covers, bottom to top. A hollow dot is not included (use < or >); a filled dot is included (use ≤ or ≥).',
+      check: { pts, closed, lo, hi, loOpen, hiOpen },
+    });
+    return out;
+  }
+  return out;
+}
+
+/* ================= angles of elevation and depression ================= */
+
+export function elevProblems() {
+  const out = []; const topic = 'Elevation and depression'; const t1 = (d) => Math.tan((d * Math.PI) / 180);
+  const mode = pick(['elev-h', 'elev-d', 'dep-d', 'dep-h']);
+  const ang = rnd(20, 60);
+  if (mode === 'elev-h' || mode === 'dep-h') {
+    const d = pick([20, 25, 30, 40, 50, 60]); const h = d * t1(ang); const ans = `${round1(h)} m`;
+    out.push({
+      kind: 'graph', topic,
+      diagram: { kind: 'elev', type: mode === 'elev-h' ? 'elevation' : 'depression', angle: ang, hLabel: 'h = ?', dLabel: `${d} m` },
+      prompt: mode === 'elev-h' ? `From a point ${d} m from the base of a tower, the angle of elevation to the top is ${ang}°. How tall is the tower, to the nearest tenth?` : `A person on a cliff sees a boat ${d} m out from the base of the cliff at an angle of depression of ${ang}°. How high is the cliff, to the nearest tenth?`,
+      answer: ans, wrong: withWrong(ans, [`${round1(d * Math.sin((ang * Math.PI) / 180))} m`, `${round1(d * Math.cos((ang * Math.PI) / 180))} m`, `${round1(d / t1(ang))} m`, `${round1(d * t1(90 - ang) / 1.2)} m`], (i) => `${round1(h + i * 2.3)} m`),
+      explain: `The height is opposite the angle and the distance ${d} m is adjacent, so tan ${ang}° = h ÷ ${d} and h = ${d} × tan ${ang}° ≈ ${round1(h)} m.${mode === 'dep-h' ? ' (The angle of depression from the cliff equals the angle of elevation from the boat.)' : ''}`,
+      fill: { q: `h ≈ _____ m (to the nearest tenth)`, answer: round1(h) },
+    });
+  } else {
+    const h = pick([12, 15, 20, 30, 45]); const d = h / t1(ang); const ans = `${round1(d)} m`;
+    out.push({
+      kind: 'graph', topic,
+      diagram: { kind: 'elev', type: mode === 'elev-d' ? 'elevation' : 'depression', angle: ang, hLabel: `${h} m`, dLabel: 'd = ?' },
+      prompt: mode === 'elev-d' ? `A ${h} m tower is seen at an angle of elevation of ${ang}°. How far is the observer from the base of the tower, to the nearest tenth?` : `From the top of a ${h} m cliff, the angle of depression to a boat is ${ang}°. How far is the boat from the base of the cliff, to the nearest tenth?`,
+      answer: ans, wrong: withWrong(ans, [`${round1(h * t1(ang))} m`, `${round1(h / Math.sin((ang * Math.PI) / 180))} m`, `${round1(h * Math.cos((ang * Math.PI) / 180))} m`, `${round1(h / t1(90 - ang) * 1.1)} m`], (i) => `${round1(d + i * 2.7)} m`),
+      explain: `tan ${ang}° = ${h} ÷ d, so d = ${h} ÷ tan ${ang}° ≈ ${round1(d)} m.`,
+    });
+  }
+  // two observation points
+  const a1 = rnd(22, 38); const a2 = rnd(a1 + 12, 62); const sep = pick([10, 15, 20, 25, 30]);
+  const hh = sep / (1 / t1(a1) - 1 / t1(a2)); const hAns = `${round1(hh)} m`;
+  out.push({
+    kind: 'graph', topic, diagram: { kind: 'elev', type: 'two', angle: a1, angle2: a2, hLabel: 'h = ?', sLabel: `${sep} m` },
+    prompt: `Points A and B are ${sep} m apart in line with a tower. The angle of elevation of the top is ${a1}° from A and ${a2}° from B. How tall is the tower, to the nearest tenth?`, answer: hAns,
+    wrong: withWrong(hAns, [`${round1(sep * t1(a2))} m`, `${round1(sep * t1(a1))} m`, `${round1(sep * Math.sin((a1 * Math.PI) / 180))} m`, `${round1(hh * 0.6)} m`], (i) => `${round1(hh + i * 3.1)} m`),
+    explain: `Let the distance from B to the base be x. Then h = x tan ${a2}° and h = (x + ${sep}) tan ${a1}°. Solving gives h = ${sep} ÷ (1/tan ${a1}° − 1/tan ${a2}°) ≈ ${round1(hh)} m.`,
+  });
+  out.push({
+    kind: 'graph', topic, diagram: { kind: 'elev', type: 'depression', angle: ang, hLabel: 'h', dLabel: 'd' }, prompt: 'The angle of depression from the top of a cliff to a boat is θ. What is the angle of elevation from the boat to the top of the cliff?', answer: 'θ (the same angle)',
+    wrong: ['90° − θ', '180° − θ', '2θ'], explain: 'The horizontal lines are parallel, so the angle of depression and the angle of elevation are alternate angles and are equal.',
+    tf: { q: 'The angle of depression from the cliff equals the angle of elevation from the boat.', answer: true },
+  });
+  return out;
+}
+
 export const MATH = {
   read: readProblems, vlt: vltProblems, circle: circleProblems, mapping: mappingProblems, transform: transformProblems, inverse: inverseProblems,
   rtri: rightTriProblems, special: specialProblems, std: angleProblems, unitcircle: unitCircleProblems, oblique: obliqueProblems, ambig: ambiguousProblems,
-  sinus: sinusoidProblems, linquad: linQuadProblems, exp: expProblems, ftype: typeProblems, seq: sequenceProblems, pascal: pascalProblems,
+  sinus: sinusoidProblems, linquad: linQuadProblems, algarea: algAreaProblems, radshape: radShapeProblems, disc: discriminantProblems, quadread: quadReadProblems, drpiece: drProblems, elev: elevProblems, exp: expProblems, ftype: typeProblems, seq: sequenceProblems, pascal: pascalProblems,
 };
