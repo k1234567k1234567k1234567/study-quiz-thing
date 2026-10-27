@@ -4,7 +4,6 @@ import * as basic from './generate.js';
 import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
 import { diagramQuestions, diagramCards } from './diagramq.js';
-import { aiDiagramProblems } from './aidiagram.js';
 
 const chunkText = (text, size) => {
   const chunks = [];
@@ -52,9 +51,7 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
     onProgress('Checking nothing was missed...');
     try { cards.push(...(await ai.makeCards(missed.join('\n'), details))); } catch { /* the main cards are still good */ }
   }
-  onProgress('Drawing diagrams...');
-  const pics = await aiDiagramProblems(`${transcript}\n${details || ''}`);
-  return [...cards, ...diagramCards({ text: `${transcript}\n${details || ''}`, extra: pics })];
+  return [...cards, ...diagramCards({ text: `${transcript}\n${details || ''}` })];
 }
 
 // Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
@@ -87,7 +84,5 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
     })));
   }
   const all = `${transcript || ''}\n${topic || ''}\n${details || ''}`;
-  onProgress('Drawing diagrams...');
-  const pics = await aiDiagramProblems(all);
-  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count, pics }), source: transcript };
+  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count }), source: transcript };
 }
