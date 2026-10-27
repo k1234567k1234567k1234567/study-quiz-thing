@@ -2,7 +2,7 @@
 // meiosis, the cell cycle, Punnett squares, pedigrees, karyotypes and the levels of classification.
 // Answers are computed from the same genotypes / counts that draw each picture.
 import { pick, shuffle, rnd, withWrong, cap } from './dutil.js';
-import { TAXA } from './diagrams2.js';
+import { TAXA, PLANT_GROUPS } from './diagrams2.js';
 
 const D = (o) => ({ kind: 'graph', ...o });
 const pct = (n, d) => { const f = `${n / d === 1 ? '1' : n === 0 ? '0' : `${n}/${d}`}`; const g = (a, b) => (b ? g(b, a % b) : a); const k = g(n, d) || 1; return n === 0 ? '0 (0%)' : `${n / k === d / k ? '1' : `${n / k}/${d / k}`} (${Math.round((n / d) * 100)}%)`.replace(f, `${n / k}/${d / k}`); };
@@ -327,7 +327,70 @@ export function taxonomyProblems() {
   return out;
 }
 
+
+/* ================= plant groups, leaves, symmetry, bacteria shapes ================= */
+
+const PLANT_INFO = [
+  'Bryophytes (mosses) have no vascular tissue, so they stay small and low, and they reproduce by spores.',
+  'Seedless vascular plants (ferns) have xylem and phloem so they can grow tall, but they still reproduce by spores.',
+  'Gymnosperms (conifers) make seeds that sit "naked" on cone scales, not inside a fruit.',
+  'Angiosperms (flowering plants) make seeds inside a fruit that develops from a flower’s ovary.',
+];
+export function plantGroupProblems() {
+  const topic = 'Plant groups'; const out = [];
+  const i = rnd(0, 3);
+  const examples = ['mosses, liverworts', 'ferns', 'pine, spruce, cedar', 'roses, maples, grasses'];
+  out.push(D({
+    topic, diagram: { kind: 'plantkey', hide: i }, prompt: 'Which group of plants is marked "?" in this key?', answer: PLANT_GROUPS[i],
+    wrong: PLANT_GROUPS.filter((g) => g !== PLANT_GROUPS[i]), explain: `${PLANT_INFO[i]} Examples: ${examples[i]}.`,
+  }));
+  const type = pick(['monocot', 'dicot']);
+  out.push(D({
+    topic: 'Monocots and dicots', diagram: { kind: 'leaf', type }, prompt: 'Is this leaf from a monocot or a dicot?', answer: type === 'monocot' ? 'Monocot' : 'Dicot',
+    wrong: [type === 'monocot' ? 'Dicot' : 'Monocot', 'Gymnosperm (conifer)', 'Bryophyte (moss)'],
+    explain: type === 'monocot' ? 'Parallel veins mean a monocot (one cotyledon), for example corn, grass and onions.' : 'Branching (net) veins mean a dicot (two cotyledons), for example maple, bean and dandelion.',
+    tf: { q: `The leaf shown has ${type === 'monocot' ? 'parallel' : 'branching'} veins.`, answer: true },
+  }));
+  out.push(D({
+    topic: 'Monocots and dicots', diagram: { kind: 'leaf', type }, prompt: 'How many cotyledons does the seed of this plant have?', answer: type === 'monocot' ? 'One' : 'Two',
+    wrong: [type === 'monocot' ? 'Two' : 'One', 'None', 'Three'],
+    explain: type === 'monocot' ? 'Monocot = one cotyledon, with parallel leaf veins.' : 'Dicot = two cotyledons, with branching leaf veins.',
+  }));
+  return out;
+}
+
+export function symmetryProblems() {
+  const types = { asymmetrical: ['Asymmetrical', 'A sponge has no plane of symmetry: no way to cut it into two matching halves.'], radial: ['Radial symmetry', 'Radially symmetrical animals (sea stars, jellyfish) can be cut into matching halves along any plane through the central axis.'], bilateral: ['Bilateral symmetry', 'Bilaterally symmetrical animals (most animals, including humans) have two matching halves, left and right, divided by one plane.'], spherical: ['Spherical symmetry', 'A sphere looks the same from every direction.'] };
+  const t = pick(['asymmetrical', 'radial', 'bilateral']);
+  return [D({
+    topic: 'Animal body plans', diagram: { kind: 'symmetry', type: t }, prompt: 'What type of body symmetry does this animal show?', answer: types[t][0],
+    wrong: Object.keys(types).filter((k) => k !== t).map((k) => types[k][0]), explain: types[t][1],
+  })];
+}
+
+export function bacteriaShapeProblems() {
+  const shapes = { coccus: ['Coccus (round)', 'Cocci are spheres.'], bacillus: ['Bacillus (rod)', 'Bacilli are rod-shaped.'], spirillum: ['Spirillum (spiral)', 'Spirilla are spiral or corkscrew shaped.'] };
+  const topic = 'Bacteria shapes'; const out = [];
+  const sh = pick(Object.keys(shapes));
+  const ar = sh === 'spirillum' ? 'single' : pick(['single', 'single', 'pairs', 'chain', 'cluster']);
+  out.push(D({
+    topic, diagram: { kind: 'bactshape', shape: sh, arrange: ar }, prompt: 'What is the shape of these bacteria?', answer: shapes[sh][0],
+    wrong: [...Object.keys(shapes).filter((k) => k !== sh).map((k) => shapes[k][0]), 'Vibrio (comma-shaped)'].slice(0, 3), explain: shapes[sh][1],
+  }));
+  if (sh !== 'spirillum' && ar !== 'single') {
+    const NAMEP = { pairs: 'Diplo-', chain: 'Strepto-', cluster: 'Staphylo-' };
+    const ans = `${NAMEP[ar]} (${ar === 'pairs' ? 'pairs' : ar === 'chain' ? 'chains' : 'clusters'})`;
+    out.push(D({
+      topic, diagram: { kind: 'bactshape', shape: sh, arrange: ar }, prompt: 'Which prefix describes how these cells are arranged?', answer: ans,
+      wrong: Object.keys(NAMEP).filter((k) => k !== ar).map((k) => `${NAMEP[k]} (${k === 'pairs' ? 'pairs' : k === 'chain' ? 'chains' : 'clusters'})`).concat(['Spiro- (spirals)']).slice(0, 3),
+      explain: 'Diplo- means pairs, strepto- means chains and staphylo- means clusters (like a bunch of grapes).',
+    }));
+  }
+  return out;
+}
+
 export const BIOGEN = {
   mitosis: mitosisProblems, meiosis: meiosisProblems, punnett: punnettProblems, dihybrid: dihybridProblems, incomplete: incompleteProblems,
   sexlinked: sexLinkedProblems, pedigree: pedigreeProblems, karyotype: karyotypeProblems, taxonomy: taxonomyProblems,
+  plantgroups: plantGroupProblems, symmetry: symmetryProblems, bactshape: bacteriaShapeProblems,
 };

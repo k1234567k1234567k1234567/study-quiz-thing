@@ -647,8 +647,54 @@ export function pascalProblems() {
   return out;
 }
 
+
+/* ================= a line and a parabola (linear-quadratic systems) ================= */
+
+export function linQuadProblems() {
+  const topic = 'Line and parabola'; const out = [];
+  for (let tries = 0; tries < 80; tries++) {
+    const mode = pick(['two', 'two', 'one', 'none']);
+    const a = pick([1, -1]); const h = rnd(-3, 3); const k = rnd(-3, 3);
+    const par = { type: 'quad', a, h, k };
+    let line;
+    if (mode === 'two') {
+      const x1 = rnd(-4, 4); const x2 = rnd(-4, 4); if (x1 === x2) continue;
+      const y1 = evalF(par, x1); const y2 = evalF(par, x2);
+      const m = (y2 - y1) / (x2 - x1); const b = y1 - m * x1;
+      if (!Number.isInteger(m) || !Number.isInteger(b) || Math.abs(b) > 5 || Math.abs(m) > 4 || Math.abs(y1) > 5 || Math.abs(y2) > 5) continue;
+      line = { type: 'lin', m, b };
+    } else if (mode === 'one') line = { type: 'lin', m: 0, b: k };
+    else { const b = a > 0 ? k - rnd(1, 2) : k + rnd(1, 2); if (Math.abs(b) > 5) continue; line = { type: 'lin', m: 0, b }; }
+    // count the intersections exactly from the discriminant of a(x-h)^2 + k = mx + b
+    const A = a; const B = -2 * a * h - line.m; const C = a * h * h + k - line.b;
+    const disc = B * B - 4 * A * C;
+    const count = disc > 1e-9 ? 2 : Math.abs(disc) <= 1e-9 ? 1 : 0;
+    const names = ['0', '1', '2'];
+    const diagram = { kind: 'graph', f: par, curves: [{ f: line, color: 'accent' }], view: VIEW, label: 'A parabola and a line' };
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'How many points of intersection do the parabola and the line have?', answer: names[count],
+      wrong: names.filter((n) => n !== names[count]).concat(['3']),
+      explain: count === 2 ? 'The line crosses the parabola at two points.' : count === 1 ? 'The line just touches the parabola at one point (a tangent), at its vertex.' : 'The line never meets the parabola, so there are no points of intersection.',
+    });
+    if (count === 2) {
+      const r1 = (-B - Math.sqrt(disc)) / (2 * A); const r2 = (-B + Math.sqrt(disc)) / (2 * A);
+      const xsol = [r1, r2].sort((p, q) => p - q);
+      if (!xsol.every((x) => Number.isInteger(Math.round(x * 1e6) / 1e6))) continue;
+      const pts = xsol.map((x) => [Math.round(x), evalF(line, Math.round(x))]);
+      const ans = pts.map(([x, y]) => pointStr(x, y)).join(' and ');
+      out.push({
+        kind: 'graph', topic, diagram: { ...diagram, marks: pts.map(([x, y]) => ({ x, y, color: 'good' })) }, prompt: 'State the points of intersection of the line and the parabola.', answer: ans,
+        wrong: withWrong(ans, [pts.map(([x, y]) => pointStr(y, x)).join(' and '), pts.map(([x, y]) => pointStr(-x, y)).join(' and '), pts.map(([x, y]) => pointStr(x, -y)).join(' and '), pts.map(([x, y]) => pointStr(x, y + 1)).join(' and ')], (i) => pts.map(([x, y]) => pointStr(x + i, y)).join(' and ')),
+        explain: 'Set the two equations equal and solve (substitution), or read where the graphs cross. Each solution x gives a point on the line.',
+      });
+    }
+    break;
+  }
+  return out;
+}
+
 export const MATH = {
   read: readProblems, vlt: vltProblems, circle: circleProblems, mapping: mappingProblems, transform: transformProblems, inverse: inverseProblems,
   rtri: rightTriProblems, special: specialProblems, std: angleProblems, unitcircle: unitCircleProblems, oblique: obliqueProblems, ambig: ambiguousProblems,
-  sinus: sinusoidProblems, exp: expProblems, ftype: typeProblems, seq: sequenceProblems, pascal: pascalProblems,
+  sinus: sinusoidProblems, linquad: linQuadProblems, exp: expProblems, ftype: typeProblems, seq: sequenceProblems, pascal: pascalProblems,
 };

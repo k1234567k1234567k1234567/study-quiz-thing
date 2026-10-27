@@ -403,9 +403,84 @@ function renderHomologs(spec) {
 }
 
 
+
+/* ---------------- plant groups key, leaves, body symmetry, bacteria shapes ---------------- */
+
+export const PLANT_GROUPS = ['Bryophytes', 'Seedless vascular plants', 'Gymnosperms', 'Angiosperms'];
+const PLANT_SHORT = ['Bryophytes', 'Ferns', 'Gymnosperms', 'Angiosperms'];
+function renderPlantKey(spec) {
+  const W = 340; const H = 292;
+  const box = (x, y, w, h, label, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" style="fill:${o.hid || !o.leaf ? 'var(--surface)' : col('primary')};stroke:${o.hid ? col('accent') : o.leaf ? 'none' : col('muted')}" fill-opacity="${o.leaf && !o.hid ? 0.3 : 1}" stroke-width="2.5"/>` + text(x + w / 2, y + h / 2 + 5, label, { size: o.size || 13, bold: true, color: o.hid ? 'accent' : undefined });
+  const lab = (i) => (spec.hide === i ? '?' : PLANT_SHORT[i]);
+  let s = box(95, 8, 150, 40, 'Vascular tissue?');
+  s += line(145, 48, 66, 96, { w: 2.5 }) + line(195, 48, 251, 96, { w: 2.5 }) + text(92, 66, 'No', { size: 12, color: 'muted' }) + text(238, 66, 'Yes', { size: 12, color: 'muted' });
+  s += box(14, 96, 104, 36, lab(0), { leaf: true, hid: spec.hide === 0 });
+  s += box(176, 96, 150, 40, 'Makes seeds?');
+  s += line(225, 136, 120, 186, { w: 2.5 }) + line(277, 136, 261, 186, { w: 2.5 }) + text(158, 154, 'No', { size: 12, color: 'muted' }) + text(286, 160, 'Yes', { size: 12, color: 'muted' });
+  s += box(70, 186, 100, 36, lab(1), { leaf: true, hid: spec.hide === 1 });
+  s += box(196, 186, 130, 40, 'Flowers & fruit?', { size: 12 });
+  s += line(240, 226, 188, 252, { w: 2.5 }) + line(282, 226, 295, 252, { w: 2.5 }) + text(200, 240, 'No', { size: 12, color: 'muted' }) + text(300, 242, 'Yes', { size: 12, color: 'muted' });
+  s += box(140, 252, 96, 32, lab(2), { leaf: true, hid: spec.hide === 2, size: 12 }) + box(250, 252, 88, 32, lab(3), { leaf: true, hid: spec.hide === 3, size: 12 });
+  return svgOf(W, H, s, 'A key that sorts plants into four groups');
+}
+
+// monocot: long narrow leaf with parallel veins; dicot: broad leaf with a midrib and branching veins
+function renderLeaf(spec) {
+  let s = '';
+  if (spec.type === 'monocot') {
+    s += `<path d="M40 130 C120 70 260 70 320 130 C260 190 120 190 40 130 Z" fill="#7bb36b" fill-opacity=".75" ${'stroke="currentColor" stroke-opacity=".6"'} stroke-width="2.5"/>`;
+    for (const dy of [-34, -20, -8, 0, 8, 20, 34]) s += `<path d="M52 ${130 + dy * 0.3} C130 ${130 + dy} 230 ${130 + dy} 306 ${130 + dy * 0.3}" fill="none" stroke="#2f7d3a" stroke-width="2" stroke-opacity=".9"/>`;
+  } else {
+    s += `<path d="M180 30 C290 60 310 170 180 232 C50 170 70 60 180 30 Z" fill="#7bb36b" fill-opacity=".75" stroke="currentColor" stroke-opacity=".6" stroke-width="2.5"/>`;
+    s += '<path d="M180 232 L180 40" stroke="#2f7d3a" stroke-width="3.5" fill="none"/>';
+    for (const y of [70, 100, 130, 160, 190]) s += `<path d="M180 ${y + 16} Q${130} ${y + 4} ${96 + (y - 70) * 0.18} ${y - 12}" stroke="#2f7d3a" stroke-width="2" fill="none"/><path d="M180 ${y + 16} Q${230} ${y + 4} ${264 - (y - 70) * 0.18} ${y - 12}" stroke="#2f7d3a" stroke-width="2" fill="none"/>`;
+    for (const y of [80, 120, 160]) s += `<path d="M${150} ${y + 2} l-16 10 M${210} ${y + 2} l16 10" stroke="#2f7d3a" stroke-width="1.4" fill="none"/>`;
+  }
+  return svgOf(360, 260, s, `A leaf with ${spec.type === 'monocot' ? 'parallel' : 'branching'} veins`);
+}
+
+function renderSymmetry(spec) {
+  let s = '';
+  if (spec.type === 'asymmetrical') {
+    s += `<path d="M120 70 C170 20 250 50 240 110 C300 120 300 190 230 200 C220 250 140 250 130 200 C70 210 50 140 100 120 C80 100 90 80 120 70 Z" fill="#e07a9b" fill-opacity=".6" stroke="currentColor" stroke-opacity=".7" stroke-width="3"/>`;
+    for (const [x, y] of [[150, 100], [200, 150], [130, 170], [220, 90], [180, 200]]) s += `<circle cx="${x}" cy="${y}" r="9" fill="var(--surface)" stroke="currentColor" stroke-opacity=".6" stroke-width="2"/>`;
+  } else if (spec.type === 'radial') {
+    const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; const r = i % 2 ? 36 : 100; pts.push(`${180 + Math.cos(a) * r},${130 + Math.sin(a) * r}`); }
+    s += `<polygon points="${pts.join(' ')}" fill="#f4a261" fill-opacity=".85" stroke="currentColor" stroke-opacity=".7" stroke-width="3" stroke-linejoin="round"/><circle cx="180" cy="130" r="14" fill="#e5605a" fill-opacity=".85"/>`;
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; s += `<line x1="180" y1="130" x2="${180 + Math.cos(a) * 80}" y2="${130 + Math.sin(a) * 80}" stroke="#8a6d3b" stroke-width="2.5" stroke-dasharray="2 6" stroke-linecap="round"/>`; }
+  } else if (spec.type === 'bilateral') {
+    s += `<path d="M180 30 C215 60 250 70 300 110 C250 130 235 150 235 190 C235 230 210 250 180 262 C150 250 125 230 125 190 C125 150 110 130 60 110 C110 70 145 60 180 30 Z" fill="#6f9fcf" fill-opacity=".7" stroke="currentColor" stroke-opacity=".7" stroke-width="3" stroke-linejoin="round"/>`;
+    s += '<circle cx="165" cy="80" r="6" fill="var(--surface)"/><circle cx="195" cy="80" r="6" fill="var(--surface)"/>';
+  } else {
+    s += `<circle cx="180" cy="130" r="92" fill="#9fd3e6" fill-opacity=".6" stroke="currentColor" stroke-opacity=".7" stroke-width="3"/><circle cx="180" cy="130" r="30" fill="#b9a7e6" fill-opacity=".85" stroke="currentColor" stroke-opacity=".6" stroke-width="2"/>`;
+  }
+  return svgOf(360, 270, s, 'An animal body plan');
+}
+
+function renderBactShape(spec) {
+  const kind = spec.shape; const ar = spec.arrange;
+  const c = (x, y) => `<circle cx="${x}" cy="${y}" r="17" fill="#e5605a" fill-opacity=".8" stroke="currentColor" stroke-opacity=".6" stroke-width="2"/>`;
+  const r = (x, y, rot = 0) => `<rect x="${x - 26}" y="${y - 11}" width="52" height="22" rx="11" transform="rotate(${rot} ${x} ${y})" fill="#6f9fcf" fill-opacity=".85" stroke="currentColor" stroke-opacity=".6" stroke-width="2"/>`;
+  let s = '';
+  if (kind === 'spirillum') {
+    s += '<path d="M40 130 q20 -50 40 0 t40 0 t40 0 t40 0 t40 0 t40 0" fill="none" stroke="#7bb36b" stroke-width="14" stroke-linecap="round"/>';
+  } else if (kind === 'coccus') {
+    if (ar === 'single') s += c(180, 130);
+    else if (ar === 'pairs') s += c(160, 130) + c(196, 130);
+    else if (ar === 'chain') for (let i = 0; i < 5; i++) s += c(88 + i * 46, 130);
+    else for (const [x, y] of [[150, 100], [186, 100], [168, 134], [132, 134], [204, 134], [150, 168], [186, 168]]) s += c(x, y);
+  } else {
+    if (ar === 'single') s += r(180, 130);
+    else if (ar === 'pairs') s += r(180, 105) + r(180, 150);
+    else if (ar === 'chain') for (let i = 0; i < 4; i++) s += r(180, 50 + i * 40);
+    else for (const [x, y, rot] of [[150, 100, 20], [200, 110, -30], [170, 150, 80], [215, 160, 10], [130, 150, -20]]) s += r(x, y, rot);
+  }
+  return svgOf(360, 260, s, 'Bacteria under a microscope');
+}
+
 /* ---------------- entry ---------------- */
 
-const KINDS = { mapping: renderMapping, fbd: renderFbd, tri: renderTriangle, angle: renderAngle, ambig: renderAmbig, pascal: renderPascal, punnett: renderPunnett, pedigree: renderPedigree, mitosis: renderMitosis, circuit: renderCircuit, meiosis: renderMeiosis, cycle: renderCycle, taxon: renderTaxon, karyo: renderKaryotype, homologs: renderHomologs };
+const KINDS = { mapping: renderMapping, fbd: renderFbd, tri: renderTriangle, angle: renderAngle, ambig: renderAmbig, pascal: renderPascal, punnett: renderPunnett, pedigree: renderPedigree, mitosis: renderMitosis, circuit: renderCircuit, meiosis: renderMeiosis, cycle: renderCycle, taxon: renderTaxon, karyo: renderKaryotype, homologs: renderHomologs, plantkey: renderPlantKey, leaf: renderLeaf, symmetry: renderSymmetry, bactshape: renderBactShape };
 
 export const hasKind = (k) => k in KINDS;
 export const renderKind = (spec) => KINDS[spec.kind](spec);

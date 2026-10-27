@@ -28,6 +28,7 @@ const RULES = [
   ['exp', (t) => has(t, /exponential (function|growth|decay|graph|equation)|half-life/i)],
   ['ftype', (t) => words(t, /\b(linear|quadratic|exponential)\b/gi) >= 2 && has(t, /function|graph|equation/i)],
   ['seq', (t) => has(t, /(arithmetic|geometric)\s+(sequence|series)|common (difference|ratio)|recursive (formula|sequence)|explicit formula/i)],
+  ['linquad', (t) => has(t, /linear[- ]quadratic|points? of intersection|line and (a )?parabola|systems? of (a )?line/i)],
   ['pascal', (t) => has(t, /pascal|binomial (expansion|theorem)|expand(ing)? (a )?binomials?/i)],
   // ----- physics -----
   ['fbd', (t) => words(t, /\b(free[- ]body|force diagrams?|net force|normal force|tension|friction|applied force|weight|newtons?|gravitational force|Fnet|F_net)\b/gi) >= 2],
@@ -43,6 +44,9 @@ const RULES = [
   ['sexlinked', (t) => has(t, /sex[- ]linked|x[- ]linked|colou?r[- ]?blind|hemophilia/i)],
   ['pedigree', (t) => has(t, /pedigrees?|carriers? of/i)],
   ['karyotype', (t) => has(t, /karyotype|trisomy|down syndrome|nondisjunction|turner syndrome|klinefelter/i)],
+  ['plantgroups', (t) => words(t, /\b(bryophytes?|gymnosperms?|angiosperms?|vascular|seedless|monocots?|dicots?|cotyledons?|xylem|phloem|conifers?|mosses|ferns?)\b/gi) >= 2],
+  ['symmetry', (t) => has(t, /symmetr|radial|bilateral|asymmetr/i) && has(t, /animal|body plan|symmetr/i)],
+  ['bactshape', (t) => words(t, /\b(coccus|cocci|bacillus|bacilli|spirill\w+|spirochetes?|strepto\w*|staphylo\w*|diplo\w*)\b/gi) >= 1 && has(t, /bacteri|prokaryot/i)],
   ['taxonomy', (t) => has(t, /taxonom|kingdom|phylum|binomial nomenclature|classification/i) && words(t, /\b(taxonomy|kingdoms?|phylum|genus|species|classification|binomial nomenclature|domains?|order|family)\b/gi) >= 3],
 ];
 
