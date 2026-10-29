@@ -5,6 +5,8 @@ import { readNotes, buildCards, buildQuiz } from './pipeline.js';
 import { fileToDataUrl, rotateDataUrl } from './images.js';
 import { pdfPageCount, readPdf } from './pdf.js';
 import { renderDiagram } from './diagrams.js';
+import { banner, artUrl } from './art.js';
+import { hasArt } from './ai.js';
 import { h, $, toast, busy, modal } from './ui.js';
 
 const app = $('#app');
@@ -90,6 +92,7 @@ function renderHome() {
       h('a', { class: 'btn primary', href: '#/new' }, '+ Add project')),
     projects.length
       ? h('div', { class: 'grid' }, projects.map((p) => h('a', { class: 'tile', href: `#/p/${p.id}` },
+        p.art && hasArt() && h('img', { class: 'thumb', src: artUrl(p.name), alt: '', loading: 'lazy', onerror: (e) => e.target.remove() }),
         h('span', { class: `badge ${p.type}` }, p.type === 'quiz' ? 'Quiz' : 'Cue cards'),
         h('h3', {}, p.name),
         h('p', { class: 'muted small' }, p.type === 'quiz'
@@ -339,6 +342,7 @@ function renderProject(p) {
     : p.cards.map((c) => cardEditor(p, c));
 
   page(
+    banner(p, () => { if (!p.art) store.update(p.id, { art: true }); }),
     h('div', { class: 'row between' },
       h('div', {}, h('span', { class: `badge ${p.type}` }, isQuiz ? 'Quiz' : 'Cue cards'), h('h1', {}, p.name),
         h('p', { class: 'muted small' }, isQuiz ? `${p.questions.length} questions · ${GRADES[p.grade].label}${p.lastResult ? ` · last score ${p.lastResult.score}/${p.lastResult.total}` : ''}` : `${p.cards.length} cards${p.cards.some((c) => c.weak) ? ` · ${p.cards.filter((c) => c.weak).length} marked for review` : ''}`)),

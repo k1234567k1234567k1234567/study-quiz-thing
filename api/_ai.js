@@ -19,7 +19,7 @@ export const hasKey = () => hasNvidia() || hasGroq();
 
 export function describe() {
   const text = hasGroq() ? groqModels()[0] : textModels()[0];
-  return { ai: hasKey(), model: text, visionModel: visionModels()[0], textProvider: hasGroq() ? 'groq' : 'nvidia', photos: hasNvidia() };
+  return { ai: hasKey(), model: text, visionModel: visionModels()[0], textProvider: hasGroq() ? 'groq' : 'nvidia', photos: hasNvidia(), art: Boolean(process.env.HF_TOKEN && !/^hf_x+$/i.test(process.env.HF_TOKEN)) };
 }
 
 // Ordered list of places to send a request: { name, url, key, model, timeout }.

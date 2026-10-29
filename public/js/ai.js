@@ -8,6 +8,8 @@ export class AIError extends Error {
 let photosOk = true;
 // Photos need the NVIDIA vision model; with only a Groq key the browser reads them itself (OCR).
 export const canReadPhotos = () => photosOk;
+let artOk = false;
+export const hasArt = () => artOk;
 
 export async function status() {
   try {
@@ -15,6 +17,7 @@ export async function status() {
     if (!r.ok) return { ai: false };
     const info = await r.json();
     photosOk = info.photos !== false;
+    artOk = info.art === true;
     return info;
   } catch { return { ai: false, offline: true }; }
 }

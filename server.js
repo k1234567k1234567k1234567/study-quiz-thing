@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { forward, hasKey, describe, selfTest } from './api/_ai.js';
 import { findImages } from './api/_commons.js';
+import { makeArt } from './api/_art.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -101,6 +102,11 @@ http.createServer(async (req, res) => {
       if (q.length < 3) return send(res, 400, { error: 'bad_request', message: 'q required' });
       try { return send(res, 200, { results: await findImages(q, Math.min(Number(sp.get('n')) || 3, 6)) }); }
       catch (e) { return send(res, 502, { error: 'upstream', message: e.message }); }
+    }
+    if (pathname === '/api/art' && req.method === 'GET') {
+      const out = await makeArt(new URL(req.url, 'http://x').searchParams.get('q') || '');
+      if (out.status !== 200) return send(res, out.status, { error: 'art', message: out.error });
+      return send(res, 200, out.buf, { 'Content-Type': out.type, 'Cache-Control': 'public, max-age=31536000, immutable' });
     }
     if (pathname === '/api/test' && req.method === 'GET') return send(res, 200, await selfTest());
     if (pathname === '/api/ai' && req.method === 'POST') return await handleAI(req, res);

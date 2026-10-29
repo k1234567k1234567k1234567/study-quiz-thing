@@ -73,3 +73,12 @@ For topics the code cannot draw itself (photosynthesis, the water, carbon and ni
 - `public/js/figures.js` picks topics from the notes and builds the cards ("What does this diagram show?") and multiple choice questions. The wrong answers come from other topics.
 - Every picture shows a credit line linking to its Commons page, on a white panel so it reads on the black theme.
 - If the lookup fails, the cards and quizzes are made without the pictures. Maths, physics and biology diagrams drawn by code are unchanged.
+
+## Decorative project banners (optional)
+
+If `HF_TOKEN` (a free Hugging Face token) is set, each project page gets an illustrated banner made by FLUX (`HF_IMAGE_MODEL` can change the model). It is only decoration and never part of a question or answer.
+
+- `api/_art.js` and `api/art.js` (also `server.js`) make one picture per project name and send it with a one-year cache header, so it is generated once and then reused by the browser and Vercel.
+- `public/js/art.js` reserves the space first, shows a slow shimmer, and fades the picture in when it has loaded, so nothing jumps. Reduced-motion users get no animation. If the picture fails, the banner just disappears.
+- Home tiles show a thumbnail only after that banner has loaded once.
+- Without the token nothing is shown and nothing is requested.
