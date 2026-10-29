@@ -1,14 +1,16 @@
 /* Black is the default. Violet is the main accent, amber is its warm partner, green and red mark right and wrong. */
-:root {
+:root, [data-theme="dark"] {
   color-scheme: dark;
+  --page: #000;
   --bg: #000; --surface: #0f0f13; --text: #f1f1f5; --muted: #9b9bab; --line: #26262e;
   --primary: #9d8cff; --primary-ink: #0a0714; --accent: #fbbf24; --accent-ink: #1a1200;
   --good: #4ade80; --good-bg: #0b2418; --bad: #ff7b72; --bad-bg: #2b1111;
   --badge-bg: #221c4a; --badge-ink: #c9c0ff; --badge2-bg: #3a2a08; --badge2-ink: #fcd277;
   --shadow: 0 2px 14px rgba(157, 140, 255, .07); --radius: 14px;
 }
-:root[data-theme="light"] {
+:root[data-theme="light"], [data-theme="light"] {
   color-scheme: light;
+  --page: #f6f7fb;
   --bg: #f6f7fb; --surface: #fff; --text: #1b1d2a; --muted: #6b7085; --line: #e3e5ee;
   --primary: #4f46e5; --primary-ink: #fff; --accent: #b45309; --accent-ink: #fff;
   --good: #16794c; --good-bg: #e6f6ee; --bad: #b42318; --bad-bg: #fdecea;
@@ -17,7 +19,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; min-height: 100vh; background: var(--page, var(--bg)) fixed; color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 h1 { font-size: 1.7rem; margin: .2rem 0 .5rem; } h2 { font-size: 1.2rem; margin: 1rem 0 .4rem; } h3 { margin: .4rem 0; }
 a { color: inherit; text-decoration: none; }
 .wrap { max-width: 760px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -111,3 +113,84 @@ input[type=text], textarea { width: 100%; padding: 10px 12px; border-radius: 10p
 .tile .thumb { width: 100%; aspect-ratio: 768 / 320; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background: var(--surface); }
 @keyframes artwait { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .art { animation: none; } .art img { transition: none; } }
+
+/* ---------- more looks (picked in Settings) ---------- */
+[data-theme="mint"] {
+  color-scheme: dark; --page: #07110e;
+  --bg: #07110e; --surface: #0e1c17; --text: #e8f5f0; --muted: #8fb3a8; --line: #1d3329;
+  --primary: #5eead4; --primary-ink: #04130f; --accent: #fcd34d; --accent-ink: #1a1200;
+  --good: #4ade80; --good-bg: #0b2a1c; --bad: #ff8a80; --bad-bg: #2b1414;
+  --badge-bg: #123a31; --badge-ink: #8ef0df; --badge2-bg: #3a300d; --badge2-ink: #fde68a;
+  --shadow: 0 2px 14px rgba(94, 234, 212, .06); --radius: 18px;
+}
+[data-theme="paper"] {
+  color-scheme: light; --page: repeating-linear-gradient(0deg, #f6f1e7 0 27px, #d9e2f2 27px 28px);
+  --bg: #f6f1e7; --surface: #fffdf8; --text: #1f2430; --muted: #4a5160; --line: #cfc6b0;
+  --primary: #2f4ea2; --primary-ink: #ffffff; --accent: #b83a0a; --accent-ink: #ffffff;
+  --good: #16794c; --good-bg: #e6f2e8; --bad: #b42318; --bad-bg: #fbe9e5;
+  --badge-bg: #dbe4f7; --badge-ink: #1d3a85; --badge2-bg: #fbe3c8; --badge2-ink: #8a3a05;
+  --shadow: 3px 3px 0 #1f2430; --radius: 10px;
+}
+[data-theme="arcade"] {
+  color-scheme: dark; --page: #0a0614;
+  --bg: #0a0614; --surface: #150d26; --text: #f4eefc; --muted: #b3a6cc; --line: #3b2a66;
+  --primary: #22d3ee; --primary-ink: #04121a; --accent: #f472b6; --accent-ink: #2a0518;
+  --good: #4ade80; --good-bg: #0b2a1c; --bad: #ff7b8f; --bad-bg: #33101c;
+  --badge-bg: #06303a; --badge-ink: #67e8f9; --badge2-bg: #3d0f2b; --badge2-ink: #f9a8d4;
+  --shadow: 3px 3px 0 #f472b6; --radius: 8px;
+}
+[data-theme="glass"] {
+  color-scheme: dark; --page: linear-gradient(170deg, #0b1226 0%, #151a3d 55%, #221a4a 100%);
+  --bg: #0b1226; --surface: #161c3b; --text: #eef0ff; --muted: #aab0d6; --line: #2c3566;
+  --primary: #818cf8; --primary-ink: #0b1020; --accent: #38bdf8; --accent-ink: #04121c;
+  --good: #4ade80; --good-bg: #0c2b2a; --bad: #ff8a8a; --bad-bg: #331626;
+  --badge-bg: #2a2f6a; --badge-ink: #c7cbff; --badge2-bg: #0f3550; --badge2-ink: #a5e3ff;
+  --shadow: 0 4px 24px rgba(129, 140, 248, .12); --radius: 20px;
+}
+[data-theme="ocean"] {
+  color-scheme: dark; --page: linear-gradient(180deg, #041a2a 0%, #06324a 60%, #0a4a5e 100%);
+  --bg: #041a2a; --surface: #08283d; --text: #e6f6fb; --muted: #8cb8c9; --line: #14506b;
+  --primary: #2dd4bf; --primary-ink: #03211d; --accent: #fcd34d; --accent-ink: #1a1200;
+  --good: #4ade80; --good-bg: #07301f; --bad: #ff8f8f; --bad-bg: #331414;
+  --badge-bg: #0d4a5e; --badge-ink: #9eeaf5; --badge2-bg: #3a300d; --badge2-ink: #fde68a;
+  --shadow: 0 2px 16px rgba(45, 212, 191, .08); --radius: 16px;
+}
+[data-theme="sunset"] {
+  color-scheme: dark; --page: linear-gradient(180deg, #1a0b24 0%, #3a1240 55%, #6b2140 100%);
+  --bg: #1a0b24; --surface: #26102f; --text: #fdeef0; --muted: #d0a9bd; --line: #4a2358;
+  --primary: #fb923c; --primary-ink: #2a1000; --accent: #fcd34d; --accent-ink: #1a1200;
+  --good: #86efac; --good-bg: #123222; --bad: #ff9aa2; --bad-bg: #3a1220;
+  --badge-bg: #4a1d52; --badge-ink: #f5c2f0; --badge2-bg: #4a2a0a; --badge2-ink: #fdd29a;
+  --shadow: 0 2px 16px rgba(251, 146, 60, .10); --radius: 16px;
+}
+[data-theme="blossom"] {
+  color-scheme: light; --page: linear-gradient(180deg, #fff1f4 0%, #fde4ec 100%);
+  --bg: #fff1f4; --surface: #ffffff; --text: #3a1d2b; --muted: #7d5568; --line: #f1cdda;
+  --primary: #c2255c; --primary-ink: #ffffff; --accent: #b45309; --accent-ink: #ffffff;
+  --good: #16794c; --good-bg: #e6f6ee; --bad: #b42318; --bad-bg: #fdecea;
+  --badge-bg: #fcd9e6; --badge-ink: #8e1745; --badge2-bg: #fde7c8; --badge2-ink: #8a4b08;
+  --shadow: 0 2px 12px rgba(194, 37, 92, .10); --radius: 16px;
+}
+[data-theme="stars"] {
+  color-scheme: dark;
+  --page: radial-gradient(circle at 14px 20px, rgba(255, 255, 255, .55) 0 1px, transparent 1.6px) 0 0 / 97px 97px, radial-gradient(circle at 60px 66px, rgba(157, 140, 255, .6) 0 1px, transparent 1.6px) 0 0 / 143px 143px, radial-gradient(circle at 30px 90px, rgba(251, 191, 36, .45) 0 1px, transparent 1.6px) 0 0 / 211px 211px, #000;
+  --bg: #000; --surface: #0c0c12; --text: #f1f1f5; --muted: #9b9bab; --line: #26262e;
+  --primary: #9d8cff; --primary-ink: #0a0714; --accent: #fbbf24; --accent-ink: #1a1200;
+  --good: #4ade80; --good-bg: #0b2418; --bad: #ff7b72; --bad-bg: #2b1111;
+  --badge-bg: #221c4a; --badge-ink: #c9c0ff; --badge2-bg: #3a2a08; --badge2-ink: #fcd277;
+  --shadow: 0 2px 14px rgba(157, 140, 255, .09); --radius: 14px;
+}
+
+/* theme picker in Settings: each choice shows a small preview drawn with that theme's own colours */
+.themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 52vh; overflow-y: auto; padding: 2px; }
+.theme { display: flex; flex-direction: column; gap: 6px; padding: 8px; text-align: left; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.theme:hover { border-color: var(--primary); } .theme[aria-pressed="true"] { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+.theme b { font-size: .9rem; } .theme small { color: var(--muted); font-size: .75rem; line-height: 1.25; }
+.tp { height: 78px; border-radius: 8px; border: 1px solid var(--line); background: var(--page); color: var(--text); overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+.tp .bar { height: 14px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
+.tp .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); } .tp .dot.b { background: var(--accent); }
+.tp .row2 { display: flex; gap: 6px; padding: 0 6px; flex: 1; }
+.tp .tile2 { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: calc(var(--radius) / 2); padding: 5px; display: flex; flex-direction: column; gap: 4px; }
+.tp .ln { height: 4px; border-radius: 3px; background: var(--muted); opacity: .6; width: 70%; } .tp .ln.s { width: 45%; }
+.tp .pill { align-self: flex-start; height: 8px; width: 28px; border-radius: 4px; background: var(--primary); }
+@media (min-width: 520px) { .themes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

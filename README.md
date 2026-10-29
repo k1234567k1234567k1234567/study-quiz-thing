@@ -86,3 +86,7 @@ If `HF_TOKEN` (a free Hugging Face token) is set, each project page gets an illu
 ## How many pictures a quiz or card set gets
 
 There is no fixed percentage. `pictureShare()` in `public/js/diagramq.js` averages how picture-heavy each detected topic is (`DENSITY` in `diagramtopics.js`: labelling cells or graphing is high, sequences and taxonomy are low), adds a little for words like "diagram" or "sketch" in the notes, and varies it slightly each time. Notes with no picture topics get none. Quizzes use it as the share of questions and cue cards as the share of the set (never fewer than three). Edit the numbers in `DENSITY` to tune a topic.
+
+## Looks (Settings → Look)
+
+Ten looks to pick from, each with a small preview drawn in its own colours: Midnight Violet (default), Daylight, Forest Mint, Notebook Paper, Neon Arcade, Slate Glass, Deep Ocean, Sunset, Blossom and Starfield. The choice is saved in the browser. The colours are CSS variables under `[data-theme="<id>"]` in `public/css/styles.css`; `public/js/themes.js` lists the names. To add one, add a block in the CSS and an entry in the list. Every look passes a 4.5:1 text contrast check.

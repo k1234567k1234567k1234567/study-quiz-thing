@@ -6,6 +6,7 @@ import { fileToDataUrl, rotateDataUrl } from './images.js';
 import { pdfPageCount, readPdf } from './pdf.js';
 import { renderDiagram } from './diagrams.js';
 import { banner, artUrl } from './art.js';
+import { THEMES, themeOf } from './themes.js';
 import { hasArt } from './ai.js';
 import { h, $, toast, busy, modal } from './ui.js';
 
@@ -19,7 +20,9 @@ const mode = () => (state.ai ? 'ai' : 'basic');
 
 /* ---------- theme ---------- */
 function applyTheme() {
-  document.documentElement.dataset.theme = store.theme() === 'light' ? 'light' : 'dark';
+  const t = themeOf(store.theme());
+  document.documentElement.dataset.theme = t.id;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.bar);
 }
 applyTheme();
 
@@ -59,6 +62,24 @@ function page(...kids) {
   app.replaceChildren(header(), h('main', { class: 'wrap' }, ...kids));
 }
 
+// Ten looks, each with a small preview drawn in its own colours (the preview element carries data-theme).
+function themePicker() {
+  const buttons = [];
+  const mark = () => buttons.forEach(([id, b]) => b.setAttribute('aria-pressed', String(id === themeOf(store.theme()).id)));
+  for (const t of THEMES) {
+    const b = h('button', { class: 'theme', type: 'button', 'aria-label': `${t.name}: ${t.note}`, onclick: () => { store.setTheme(t.id); applyTheme(); mark(); } },
+      h('div', { class: 'tp', 'data-theme': t.id },
+        h('div', { class: 'bar' }, h('span', { class: 'dot' }), h('span', { class: 'dot b' })),
+        h('div', { class: 'row2' },
+          h('div', { class: 'tile2' }, h('span', { class: 'pill' }), h('span', { class: 'ln' }), h('span', { class: 'ln s' })),
+          h('div', { class: 'tile2' }, h('span', { class: 'pill' }), h('span', { class: 'ln' }), h('span', { class: 'ln s' })))),
+      h('b', {}, t.name), h('small', {}, t.note));
+    buttons.push([t.id, b]);
+  }
+  mark();
+  return h('div', { class: 'themes' }, buttons.map(([, b]) => b));
+}
+
 function openSettings() {
   const file = h('input', { type: 'file', accept: 'application/json', class: 'hidden', onchange: async (e) => {
     const f = e.target.files[0];
@@ -71,8 +92,10 @@ function openSettings() {
       : state.offline
         ? 'Can\'t reach the Study Hub server, so only basic mode works. Start it with "node server.js".'
         : 'Basic mode: photos are read on your device and questions are made by simple rules. For smarter questions, get a free key at build.nvidia.com, put it in a .env file as NVIDIA_API_KEY, and restart the server (see README).'),
+    h('div', { class: 'stack' },
+      h('b', {}, 'Look'),
+      themePicker()),
     h('div', { class: 'row' },
-      h('button', { class: 'btn', onclick: () => { store.setTheme(store.theme() === 'light' ? 'dark' : 'light'); applyTheme(); } }, 'Switch black / light'),
       h('button', { class: 'btn', onclick: () => {
         const a = h('a', { href: URL.createObjectURL(new Blob([store.exportJSON()], { type: 'application/json' })), download: 'study-hub-backup.json' });
         a.click();
