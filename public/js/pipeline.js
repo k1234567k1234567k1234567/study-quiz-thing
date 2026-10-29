@@ -39,9 +39,15 @@ function uncovered(transcript, cards) {
   });
 }
 
+// Picture cards never outnumber the plain ones by much: at most half as many again, and at least three.
+const limitPics = (plain, pics) => pics.slice(0, Math.max(3, Math.ceil(plain.length / 2)));
+
 export async function buildCards({ transcript, details, mode, onProgress }) {
   const figs = await findFigures(`${transcript}\n${details || ''}`);
-  if (mode !== 'ai') return [...basic.makeCards(transcript), ...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)];
+  if (mode !== 'ai') {
+    const plain = basic.makeCards(transcript);
+    return [...plain, ...limitPics(plain, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)])];
+  }
   const cards = [];
   const chunks = chunkText(transcript, 2000);
   for (let i = 0; i < chunks.length; i++) {
@@ -53,12 +59,14 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
     onProgress('Checking nothing was missed...');
     try { cards.push(...(await ai.makeCards(missed.join('\n'), details))); } catch { /* the main cards are still good */ }
   }
-  return [...cards, ...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)];
+  return [...cards, ...limitPics(cards, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)])];
 }
 
 // Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
 function withDiagrams(questions, { text, types, count, pics, figs = [] }) {
-  const extra = [...diagramQuestions({ text, types, count, extra: pics }), ...(types.includes('mc') ? figureQuestions(figs, count) : [])];
+  // at most about a third of the quiz has a picture; the rest stay plain (solve, define, explain)
+  const limit = Math.max(1, Math.round(count / 3));
+  const extra = [...diagramQuestions({ text, types, count, extra: pics }), ...(types.includes('mc') ? figureQuestions(figs, count) : [])].slice(0, limit);
   return extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
 }
 
