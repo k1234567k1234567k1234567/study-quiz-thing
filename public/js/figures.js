@@ -31,6 +31,10 @@ const TOPICS = [
   [/simple machines?|lever|pulley|inclined plane/i, 'simple machines', 'Simple machines', 'phys'],
 ];
 
+// Typical picture-heaviness of each group of Commons topics, used with the code-drawn topics to set the share.
+export const FIGURE_DENSITY = { bio: 0.4, eco: 0.45, earth: 0.4, phys: 0.45, chem: 0.35 };
+export const figureGroups = (figs) => figs.map((f) => FIGURE_DENSITY[f.group] ?? 0.4);
+
 export function figureTopics(text, skip = []) {
   const t = text || '';
   return TOPICS.filter(([re, , label]) => re.test(t) && !skip.includes(label)).map(([, query, label, group]) => ({ query, label, group }));
@@ -64,9 +68,9 @@ export function figureCards(figs) {
 const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
 
 // Multiple choice only: the picture was found by searching for the label, and the wrong answers come from other topics.
-export function figureQuestions(figs, count) {
+export function figureQuestions(figs, count, share = 0.2) {
   const labels = TOPICS.map((t) => t[2]);
-  return figs.slice(0, Math.max(1, Math.round(count * 0.2))).map((f) => {
+  return figs.slice(0, Math.max(1, Math.round(count * share))).map((f) => {
     const sameGroup = TOPICS.filter((t) => t[3] === f.group && t[2] !== f.label).map((t) => t[2]);
     const wrong = shuffle([...new Set([...shuffle(sameGroup), ...shuffle(labels)])].filter((l) => l !== f.label)).slice(0, 3);
     const options = shuffle([f.label, ...wrong]);

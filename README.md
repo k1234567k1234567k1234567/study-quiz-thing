@@ -82,3 +82,7 @@ If `HF_TOKEN` (a free Hugging Face token) is set, each project page gets an illu
 - `public/js/art.js` reserves the space first, shows a slow shimmer, and fades the picture in when it has loaded, so nothing jumps. Reduced-motion users get no animation. If the picture fails, the banner just disappears.
 - Home tiles show a thumbnail only after that banner has loaded once.
 - Without the token nothing is shown and nothing is requested.
+
+## How many pictures a quiz or card set gets
+
+There is no fixed percentage. `pictureShare()` in `public/js/diagramq.js` averages how picture-heavy each detected topic is (`DENSITY` in `diagramtopics.js`: labelling cells or graphing is high, sequences and taxonomy are low), adds a little for words like "diagram" or "sketch" in the notes, and varies it slightly each time. Notes with no picture topics get none. Quizzes use it as the share of questions and cue cards as the share of the set (never fewer than three). Edit the numbers in `DENSITY` to tune a topic.

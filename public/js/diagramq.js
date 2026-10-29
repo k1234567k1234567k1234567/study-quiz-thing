@@ -2,7 +2,7 @@
 // Quizzes and cue cards call diagramQuestions() / diagramCards() with the student's notes; if the notes
 // are about cells or about functions, a few questions that need a diagram are added.
 import { BIO, evalF } from './diagrams.js';
-import { GENERATORS, detectExtra } from './diagramtopics.js';
+import { GENERATORS, detectExtra, densityOf } from './diagramtopics.js';
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
@@ -324,10 +324,24 @@ function pool(text, extra = []) {
   return out;
 }
 
-export function diagramQuestions({ text, types, count, extra }) {
+// What share of a quiz (or card set) should be pictures, from how picture-heavy the detected topics are.
+// A labelling or graphing unit gets mostly pictures, sequences or taxonomy far fewer; words like "diagram" or "sketch" in the notes nudge it up.
+// `more` adds topics found elsewhere (for example Commons diagrams). A little randomness keeps two quizzes on the same notes from looking identical.
+export function pictureShare(text, more = []) {
+  const d = detect(text);
+  const ids = [...d.bio, ...(d.graph.length ? ['graph'] : []), ...d.extra];
+  const dens = [...ids.map(densityOf), ...more];
+  if (!dens.length) return 0;
+  const mean = dens.reduce((a, b) => a + b, 0) / dens.length;
+  const hints = count(text || '', /\b(diagrams?|graphs?|sketch\w*|draw\w*|label\w*|figures?|illustrat\w*|pictures?)\b/gi);
+  const share = mean + Math.min(hints, 3) * 0.03 + (Math.random() - 0.5) * 0.16;
+  return Math.min(0.7, Math.max(0.1, share));
+}
+
+export function diagramQuestions({ text, types, count, extra, share = 0.3 }) {
   const all = pool(text, extra);
   if (!all.length) return [];
-  const want = Math.min(Math.max(1, Math.round(count * 0.3)), all.length);
+  const want = Math.min(Math.max(1, Math.round(count * share)), all.length);
   const qs = [];
   for (const p of all) { const q = toQuestion(p, types); if (q) qs.push(q); if (qs.length >= want) break; }
   return qs;

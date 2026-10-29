@@ -3,8 +3,8 @@ import * as ai from './ai.js';
 import * as basic from './generate.js';
 import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
-import { diagramQuestions, diagramCards } from './diagramq.js';
-import { findFigures, figureCards, figureQuestions } from './figures.js';
+import { diagramQuestions, diagramCards, pictureShare } from './diagramq.js';
+import { findFigures, figureCards, figureQuestions, figureGroups } from './figures.js';
 
 const chunkText = (text, size) => {
   const chunks = [];
@@ -39,14 +39,15 @@ function uncovered(transcript, cards) {
   });
 }
 
-// Picture cards never outnumber the plain ones by much: at most half as many again, and at least three.
-const limitPics = (plain, pics) => pics.slice(0, Math.max(3, Math.ceil(plain.length / 2)));
+// Picture cards make up about `share` of the set (from how picture-heavy the topics are), and never fewer than three.
+const limitPics = (plain, pics, share) => pics.slice(0, Math.max(3, Math.ceil((plain.length * share) / (1 - share))));
 
 export async function buildCards({ transcript, details, mode, onProgress }) {
   const figs = await findFigures(`${transcript}\n${details || ''}`);
+  const share = pictureShare(`${transcript}\n${details || ''}`, figureGroups(figs)) || 0.3;
   if (mode !== 'ai') {
     const plain = basic.makeCards(transcript);
-    return [...plain, ...limitPics(plain, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)])];
+    return [...plain, ...limitPics(plain, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)], share)];
   }
   const cards = [];
   const chunks = chunkText(transcript, 2000);
@@ -59,14 +60,15 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
     onProgress('Checking nothing was missed...');
     try { cards.push(...(await ai.makeCards(missed.join('\n'), details))); } catch { /* the main cards are still good */ }
   }
-  return [...cards, ...limitPics(cards, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)])];
+  return [...cards, ...limitPics(cards, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)], share)];
 }
 
 // Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
 function withDiagrams(questions, { text, types, count, pics, figs = [] }) {
-  // at most about a third of the quiz has a picture; the rest stay plain (solve, define, explain)
-  const limit = Math.max(1, Math.round(count / 3));
-  const extra = [...diagramQuestions({ text, types, count, extra: pics }), ...(types.includes('mc') ? figureQuestions(figs, count) : [])].slice(0, limit);
+  // How many have a picture depends on how picture-heavy the topics are; the rest stay plain (solve, define, explain).
+  const share = pictureShare(text, figureGroups(figs));
+  const limit = share ? Math.max(1, Math.round(count * share)) : 0;
+  const extra = [...diagramQuestions({ text, types, count, extra: pics, share }), ...(types.includes('mc') ? figureQuestions(figs, count, share) : [])].slice(0, limit);
   return extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
 }
 

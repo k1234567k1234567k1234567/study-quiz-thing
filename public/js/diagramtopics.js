@@ -61,3 +61,18 @@ export function detectExtra(text) {
   for (const [id, test] of RULES) { try { if (test(text) && GENERATORS[id]) out.push(id); } catch { /* ignore a bad rule */ } }
   return out;
 }
+
+// How picture-heavy each topic is in a real course (0 = almost never, 1 = nearly every question). Anything not listed counts as 0.4.
+const DENSITY = {
+  // labelling pictures
+  neuron: 0.7, dna: 0.6, virus: 0.6, phage: 0.6, bacterium: 0.6, flower: 0.65, mushroom: 0.55, 'plant-cell': 0.7, 'animal-cell': 0.7,
+  graph: 0.6,
+  // maths
+  read: 0.65, vlt: 0.6, circle: 0.45, mapping: 0.55, transform: 0.65, inverse: 0.5, rtri: 0.6, special: 0.55, std: 0.55, unitcircle: 0.6, oblique: 0.55, ambig: 0.55,
+  sinus: 0.6, linquad: 0.5, algarea: 0.4, radshape: 0.4, disc: 0.45, quadread: 0.5, drpiece: 0.55, elev: 0.65, exp: 0.4, ftype: 0.45, seq: 0.2, pascal: 0.2,
+  // physics
+  fbd: 0.65, motion: 0.5, circuit: 0.65, wave: 0.6,
+  // biology
+  mitosis: 0.7, meiosis: 0.7, punnett: 0.55, dihybrid: 0.5, incomplete: 0.5, sexlinked: 0.5, pedigree: 0.7, karyotype: 0.6, taxonomy: 0.35, plantgroups: 0.5, symmetry: 0.5, bactshape: 0.5,
+};
+export const densityOf = (id) => DENSITY[id] ?? 0.4;
