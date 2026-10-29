@@ -1,5 +1,6 @@
 // Talks to our own server (/api/ai), which holds the NVIDIA key.
 import { TRANSCRIBE, CARD_SYSTEM, quizSystem } from './prompts.js';
+import { fixMC } from './options.js';
 
 export class AIError extends Error {
   constructor(message, code) { super(message); this.code = code; }
@@ -110,7 +111,7 @@ function normQuestion(q) {
       else ans = options.findIndex((o) => o.toLowerCase() === ans.trim().toLowerCase());
     }
     if (!Number.isInteger(ans) || ans < 0 || ans >= options.length) return null;
-    return { ...out, options, answer: ans };
+    return fixMC({ ...out, options, answer: ans });
   }
   if (type === 'tf') {
     const a = typeof q.answer === 'string' ? q.answer.trim().toLowerCase() === 'true' : Boolean(q.answer);

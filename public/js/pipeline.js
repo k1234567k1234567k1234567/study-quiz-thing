@@ -4,6 +4,7 @@ import * as basic from './generate.js';
 import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
 import { diagramQuestions, diagramCards, pictureShare } from './diagramq.js';
+import { fixMC } from './options.js';
 import { findFigures, figureCards, figureQuestions, figureGroups } from './figures.js';
 
 const chunkText = (text, size) => {
@@ -69,7 +70,8 @@ function withDiagrams(questions, { text, types, count, pics, figs = [] }) {
   const share = pictureShare(text, figureGroups(figs));
   const limit = share ? Math.max(1, Math.round(count * share)) : 0;
   const extra = [...diagramQuestions({ text, types, count, extra: pics, share }), ...(types.includes('mc') ? figureQuestions(figs, count, share) : [])].slice(0, limit);
-  return extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
+  const all = extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
+  return all.map(fixMC).filter(Boolean);
 }
 
 export async function buildQuiz({ transcript, topic, details, grade, count, types, mode, onProgress }) {

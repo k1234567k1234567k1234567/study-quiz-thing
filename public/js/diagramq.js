@@ -3,6 +3,7 @@
 // are about cells or about functions, a few questions that need a diagram are added.
 import { BIO, evalF } from './diagrams.js';
 import { GENERATORS, detectExtra, densityOf } from './diagramtopics.js';
+import { allDistinct } from './options.js';
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const shuffle = (a) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } return r; };
@@ -294,6 +295,7 @@ function toQuestion(p, types) {
   const base = { explanation: p.explain, topic: p.topic || (p.kind === 'graph' ? 'Graphs' : 'Diagrams'), diagram: p.diagram };
   if (type === 'mc') {
     const opts = shuffle([p.answer, ...p.wrong.slice(0, 3)]);
+    if (!allDistinct(opts)) return null; // never show options that read the same
     return { ...base, type, q: p.prompt, options: opts, answer: opts.indexOf(p.answer) };
   }
   if (type === 'short') return { ...base, type, q: p.prompt, answer: p.kind === 'name' ? p.backText : p.answer };

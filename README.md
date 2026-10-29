@@ -92,3 +92,7 @@ There is no fixed percentage. `pictureShare()` in `public/js/diagramq.js` averag
 Ten looks to pick from, each with a small preview drawn in its own colours: Midnight Violet (default), Daylight, Forest Mint, Notebook Paper, Neon Arcade, Slate Glass, Deep Ocean, Sunset, Blossom and Starfield. The choice is saved in the browser. The colours are CSS variables under `[data-theme="<id>"]` in `public/css/styles.css`; `public/js/themes.js` lists the names. To add one, add a block in the CSS and an entry in the list. Every look passes a 4.5:1 text contrast check.
 
 Unit 3 lesson 3-3 (`props` in `diagramq2.js`): graphs of y = √x and y = 1/x with domain and range, asymptotes, end behaviour (as x → 0⁺, as x → −∞), quadrants and intercepts.
+
+## Multiple choice safety net
+
+`public/js/options.js` removes options that read the same (for example "-2" and "−2", or "−2.0"), keeps the right answer, and drops any question left with fewer than two different options. It runs on AI-written questions (`ai.js`), on the picture questions (`diagramq.js`, which skips a problem and takes the next one) and on the finished quiz (`pipeline.js`).
