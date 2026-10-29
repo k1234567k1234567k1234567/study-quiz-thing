@@ -100,6 +100,8 @@ function normQuestion(q) {
   const text = asText(q.q ?? q.question);
   if (!type || !text) return null;
   const out = { type, q: text, explanation: asText(q.explanation), topic: asText(q.topic) };
+  const lv = String(q.level || '').toLowerCase();
+  if (['easy', 'medium', 'hard'].includes(lv)) out.level = lv;
   if (type === 'mc') {
     const options = (q.options || []).map(asText).filter(Boolean);
     if (options.length < 2) return null;

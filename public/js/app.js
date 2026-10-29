@@ -1,6 +1,6 @@
 import * as store from './store.js';
 import * as ai from './ai.js';
-import { GRADES, QTYPES, DIFFICULTY, levelOf } from './prompts.js';
+import { GRADES, QTYPES, DIFFICULTY, levelsOf, levelText, splitCount } from './prompts.js';
 import { readNotes, buildCards, buildQuiz } from './pipeline.js';
 import { fileToDataUrl, rotateDataUrl } from './images.js';
 import { pdfPageCount, readPdf } from './pdf.js';
@@ -119,7 +119,7 @@ function renderHome() {
         h('span', { class: `badge ${p.type}` }, p.type === 'quiz' ? 'Quiz' : 'Cue cards'),
         h('h3', {}, p.name),
         h('p', { class: 'muted small' }, p.type === 'quiz'
-          ? `${p.questions.length} questions${p.grade ? ` · ${GRADES[p.grade].label}` : ''} · ${DIFFICULTY[levelOf(p.difficulty)].label}${p.lastResult ? ` · last ${p.lastResult.score}/${p.lastResult.total}` : ''}`
+          ? `${p.questions.length} questions${p.grade ? ` · ${GRADES[p.grade].label}` : ''} · ${levelText(p.difficulty)}${p.lastResult ? ` · last ${p.lastResult.score}/${p.lastResult.total}` : ''}`
           : `${p.cards.length} cards`))))
       : h('div', { class: 'empty' },
         h('h2', {}, 'Nothing here yet'),
@@ -134,7 +134,20 @@ function renderHome() {
 
 /* ---------- wizard ---------- */
 let wiz = null;
-const freshWiz = () => ({ step: 1, type: null, name: '', grade: 'academic', difficulty: 'medium', topic: '', details: '', notes: '', images: [], count: 10, types: ['mc', 'tf', 'fill', 'short'], transcript: '', error: '' });
+// Difficulty can be one level or a mix. Tapping a chosen level removes it, but one always stays chosen.
+const toggleLevel = (current, k) => {
+  const has = current.includes(k);
+  if (has && current.length === 1) return current;
+  return levelsOf(has ? current.filter((x) => x !== k) : [...current, k]);
+};
+const mixLine = (levels, count) => {
+  const ls = levelsOf(levels);
+  if (ls.length === 1) return `Only ${DIFFICULTY[ls[0]].label.toLowerCase()} questions. Same topics at every level. Tap more than one level for a mix.`;
+  const c = splitCount(count, ls);
+  return `A mix, easiest first: ${ls.map((l, i) => `${c[i]} ${l}`).join(' + ')} (of ${count}). Tap a chosen level again to remove it.`;
+};
+
+const freshWiz = () => ({ step: 1, type: null, name: '', grade: 'academic', difficulty: ['medium'], topic: '', details: '', notes: '', images: [], count: 10, types: ['mc', 'tf', 'fill', 'short'], transcript: '', error: '' });
 
 function renderWizard() {
   wiz ||= freshWiz();
@@ -229,8 +242,9 @@ function wizSource() {
       h('label', { class: 'field' }, h('span', {}, 'Details'), details)),
     isQuiz && h('section', { class: 'stack' },
       h('h2', {}, 'Difficulty'),
-      h('div', { class: 'seg three', role: 'group', 'aria-label': 'Difficulty' }, Object.entries(DIFFICULTY).map(([k, d]) => h('button', { class: `segbtn ${wiz.difficulty === k ? 'on' : ''}`, 'aria-pressed': String(wiz.difficulty === k), onclick: () => { keep(); wiz.difficulty = k; renderWizard(); } }, h('strong', {}, d.label), h('small', {}, d.desc)))),
-      h('p', { class: 'muted small' }, 'Same topics either way. You can change this later from the quiz page.')),
+      h('div', { class: 'seg three', role: 'group', 'aria-label': 'Difficulty (pick one or more)' }, Object.entries(DIFFICULTY).map(([k, d]) => { const on = wiz.difficulty.includes(k); return h('button', { class: `segbtn ${on ? 'on' : ''}`, 'aria-pressed': String(on), onclick: () => { keep(); wiz.difficulty = toggleLevel(wiz.difficulty, k); renderWizard(); } }, h('strong', {}, `${on ? '✓ ' : ''}${d.label}`), h('small', {}, d.desc)); })),
+      h('p', { class: 'muted small' }, mixLine(wiz.difficulty, wiz.count)),
+    ),
     isQuiz && h('section', { class: 'stack' },
       h('h2', {}, 'Quiz options'),
       h('div', { class: 'row wrapr' }, [5, 10, 15, 20, 30].map((n) => h('button', { class: `pill ${wiz.count === n ? 'on' : ''}`, onclick: () => { keep(); wiz.count = n; renderWizard(); } }, `${n} questions`))),
@@ -347,7 +361,7 @@ function renderProject(p) {
     const b = busy('Working on it...');
     try {
       if (isQuiz) {
-        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, difficulty: levelOf(p.difficulty), count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
+        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, difficulty: levelsOf(p.difficulty), count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
         store.update(p.id, { questions, lastResult: null });
       } else {
         const cards = await buildCards({ transcript: p.transcript, details: p.details, mode: mode(), onProgress: b.set });
@@ -358,27 +372,33 @@ function renderProject(p) {
       renderProject(store.get(p.id));
     } catch (e) { b.close(); toast(e.message); }
   };
-  // Rebuilds the same quiz (same notes, topic, length and question types) at another difficulty.
+  // Rebuilds the same quiz (same notes, topic, length and question types) at another difficulty, or a mix of levels.
   const changeDifficulty = () => {
     if (!p.transcript.trim() && !p.topic) return toast('No source text saved for this project');
-    const current = levelOf(p.difficulty);
-    let close;
-    const pick = async (level) => {
-      close();
-      if (level === current) return;
-      const b = busy(`Making the questions ${DIFFICULTY[level].label.toLowerCase()}...`);
+    const current = levelsOf(p.difficulty);
+    let chosen = [...current];
+    let close; let body;
+    const draw = () => {
+      const c = splitCount(p.count || 10, chosen);
+      body.replaceChildren(
+        h('p', { class: 'muted' }, 'Rebuilds the questions from your saved notes. The topics stay the same; the questions get easier or harder. Questions you edited or deleted come back, and your last score is cleared.'),
+        h('div', { class: 'seg three', role: 'group', 'aria-label': 'Difficulty (pick one or more)' }, Object.entries(DIFFICULTY).map(([k, d]) => { const on = chosen.includes(k); return h('button', { class: `segbtn ${on ? 'on' : ''}`, 'aria-pressed': String(on), onclick: () => { chosen = toggleLevel(chosen, k); draw(); } }, h('strong', {}, `${on ? '✓ ' : ''}${d.label}`), h('small', {}, d.desc)); })),
+        h('p', { class: 'muted small' }, chosen.length === 1 ? `Only ${DIFFICULTY[chosen[0]].label.toLowerCase()} questions. Tap more than one level for a mix.` : `A mix, easiest first: ${chosen.map((l, i) => `${c[i]} ${l}`).join(' + ')}.`));
+    };
+    const apply = async () => {
+      if (chosen.join() === current.join()) return;
+      const b = busy('Rebuilding the questions...');
       try {
-        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, difficulty: level, count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
-        store.update(p.id, { questions, difficulty: level, lastResult: null });
+        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, difficulty: chosen, count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
+        store.update(p.id, { questions, difficulty: chosen, lastResult: null });
         b.close();
-        toast(`Now ${DIFFICULTY[level].label}`);
+        toast(`Now ${levelText(chosen)}`);
         renderProject(store.get(p.id));
       } catch (e) { b.close(); toast(e.message); }
     };
-    const body = h('div', { class: 'stack' },
-      h('p', { class: 'muted' }, 'Rebuilds the questions from your saved notes. The topics stay the same; the questions get easier or harder. Questions you edited or deleted come back, and your last score is cleared.'),
-      h('div', { class: 'seg three' }, Object.entries(DIFFICULTY).map(([k, d]) => h('button', { class: `segbtn ${current === k ? 'on' : ''}`, 'aria-pressed': String(current === k), onclick: () => pick(k) }, h('strong', {}, d.label), h('small', {}, d.desc)))));
-    close = modal('Change difficulty', body, [{ label: 'Cancel' }]);
+    body = h('div', { class: 'stack' });
+    draw();
+    close = modal('Change difficulty', body, [{ label: 'Cancel' }, { label: 'Rebuild quiz', primary: true, onClick: () => { apply(); } }]);
   };
   const del = () => modal('Delete project?', h('p', {}, `"${p.name}" will be removed from this browser.`), [{ label: 'Cancel' }, { label: 'Delete', primary: true, onClick: () => { store.remove(p.id); go('#/'); } }]);
   const showNotes = () => {
@@ -394,13 +414,13 @@ function renderProject(p) {
     banner(p, () => { if (!p.art) store.update(p.id, { art: true }); }),
     h('div', { class: 'row between' },
       h('div', {}, h('span', { class: `badge ${p.type}` }, isQuiz ? 'Quiz' : 'Cue cards'), h('h1', {}, p.name),
-        h('p', { class: 'muted small' }, isQuiz ? `${p.questions.length} questions · ${GRADES[p.grade].label} · ${DIFFICULTY[levelOf(p.difficulty)].label}${p.lastResult ? ` · last score ${p.lastResult.score}/${p.lastResult.total}` : ''}` : `${p.cards.length} cards${p.cards.some((c) => c.weak) ? ` · ${p.cards.filter((c) => c.weak).length} marked for review` : ''}`)),
+        h('p', { class: 'muted small' }, isQuiz ? `${p.questions.length} questions · ${GRADES[p.grade].label} · ${levelText(p.difficulty)}${p.lastResult ? ` · last score ${p.lastResult.score}/${p.lastResult.total}` : ''}` : `${p.cards.length} cards${p.cards.some((c) => c.weak) ? ` · ${p.cards.filter((c) => c.weak).length} marked for review` : ''}`)),
       h('a', { class: 'btn primary', href: `#/${isQuiz ? 'quiz' : 'cards'}/${p.id}` }, isQuiz ? 'Take quiz' : 'Study cards')),
     h('div', { class: 'row wrapr' },
       h('button', { class: 'btn', onclick: rename }, 'Rename'),
       h('button', { class: 'btn', onclick: showNotes }, 'View notes text'),
       h('button', { class: 'btn', onclick: regen }, isQuiz ? 'New quiz from same notes' : 'Regenerate cards'),
-      isQuiz && h('button', { class: 'btn', onclick: changeDifficulty }, `Difficulty: ${DIFFICULTY[levelOf(p.difficulty)].label}`),
+      isQuiz && h('button', { class: 'btn', onclick: changeDifficulty }, `Difficulty: ${levelText(p.difficulty)}`),
       !isQuiz && h('button', { class: 'btn', onclick: () => printCards(p) }, 'Print cards'),
       !isQuiz && h('button', { class: 'btn', onclick: () => { const c = { id: store.uid(), q: '', a: '', topic: '', weak: false }; p.cards.push(c); store.update(p.id, { cards: p.cards }); renderProject(store.get(p.id)); } }, '+ Add card'),
       h('button', { class: 'btn danger', onclick: del }, 'Delete')),
@@ -508,7 +528,9 @@ function fillCorrect(input, answer) {
 function renderQuiz(p) {
   if (!p.questions.length) { toast('This quiz has no questions'); return go(`#/p/${p.id}`); }
   store.markStudied();
-  const s = { qs: shuffle(p.questions), i: 0, result: [], picked: null, submitted: false, revealed: false, full: true };
+  // a mix of difficulty levels starts with the easiest questions (shuffled within each level); a single level is just shuffled
+  const lvl = (q) => ['easy', 'medium', 'hard'].indexOf(q.level || 'medium');
+  const s = { qs: levelsOf(p.difficulty).length > 1 ? shuffle(p.questions).sort((a, b) => lvl(a) - lvl(b)) : shuffle(p.questions), i: 0, result: [], picked: null, submitted: false, revealed: false, full: true };
 
   const record = (q, ok) => { s.result.push({ q, ok }); s.submitted = true; };
   // AI-drawn pictures can be wrong, so a bad one is thrown out of this quiz and the saved project.
@@ -556,7 +578,7 @@ function renderQuiz(p) {
         h('a', { class: 'btn ghost', href: `#/p/${p.id}` }, '← Exit'),
         h('span', { class: 'muted' }, `Question ${s.i + 1} of ${s.qs.length}`)),
       h('div', { class: 'bar' }, h('span', { style: `width:${(s.i / s.qs.length) * 100}%` })),
-      h('div', { class: 'qcard stack' }, q.topic && h('small', { class: 'muted' }, q.topic), h('h2', {}, q.q), q.diagram && renderDiagram(q.diagram),
+      h('div', { class: 'qcard stack' }, (q.topic || (levelsOf(p.difficulty).length > 1 && q.level)) && h('small', { class: 'muted' }, [levelsOf(p.difficulty).length > 1 && q.level ? DIFFICULTY[q.level].label : '', q.topic].filter(Boolean).join(' · ')), h('h2', {}, q.q), q.diagram && renderDiagram(q.diagram),
         q.diagram?.kind === 'ai' && !s.submitted && h('button', { class: 'btn ghost small', onclick: () => dropBad(q) }, 'This diagram looks wrong — skip it'),
         body, fb,
         s.submitted && h('button', { class: 'btn primary', onclick: () => { s.i++; s.picked = null; s.submitted = false; s.revealed = false; draw(); } }, s.i + 1 >= s.qs.length ? 'See results' : 'Next →')));

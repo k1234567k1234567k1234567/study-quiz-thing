@@ -99,7 +99,7 @@ Unit 3 lesson 3-3 (`props` in `diagramq2.js`): graphs of y = √x and y = 1/x wi
 
 ## Difficulty (Easy, Medium, Hard)
 
-Quizzes have a difficulty, picked when you set the quiz up and changeable later with the "Difficulty" button on the quiz page, which rebuilds the questions from the saved notes (same topics, same length and question types). The levels and their descriptions are in `DIFFICULTY` in `public/js/prompts.js`.
+Quizzes have a difficulty, one level or a mix (for example Easy + Hard splits the questions evenly, easiest first; Hard alone gives only hard questions), picked when you set the quiz up and changeable later with the "Difficulty" button on the quiz page, which rebuilds the questions from the saved notes (same topics, same length and question types). The levels and their descriptions are in `DIFFICULTY` in `public/js/prompts.js`.
 
 - AI mode: the level is added to the prompt (easy is direct recall with clearly different wrong options; hard is multi-step with wrong options close to the answer).
 - Basic mode (`generate.js`): easy leans to multiple choice and true/false and picks wrong options that look different; hard leans to typed answers and picks wrong options that look like the right one.

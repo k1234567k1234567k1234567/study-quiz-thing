@@ -5,6 +5,7 @@ import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
 import { diagramQuestions, diagramCards, pictureShare } from './diagramq.js';
 import { fixMC } from './options.js';
+import { LEVEL_ORDER, levelsOf, splitCount } from './prompts.js';
 import { findFigures, figureCards, figureQuestions, figureGroups } from './figures.js';
 
 const chunkText = (text, size) => {
@@ -64,17 +65,31 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
   return [...cards, ...limitPics(cards, [...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)], share)];
 }
 
-// Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
-function withDiagrams(questions, { text, types, count, pics, figs = [], difficulty = 'medium' }) {
+const tag = (list, level) => list.map((q) => ({ ...q, level: q.level || level }));
+const rankOf = (q) => LEVEL_ORDER.indexOf(q.level || 'medium');
+// With a mix of levels the quiz starts with the easiest questions and ends with the hardest.
+const byLevel = (qs) => [...qs].sort((a, b) => rankOf(a) - rankOf(b));
+const dedupe = (qs) => { const seen = new Set(); return qs.filter((q) => { const k = `${q.q}|${q.options ? q.options[q.answer] : q.answer}`; if (seen.has(k)) return false; seen.add(k); return true; }); };
+
+// Questions that need a picture (cell diagrams, function graphs) take the place of some text questions.
+// `levels` is the chosen difficulty levels: each one gets its share of the picture questions, and each level
+// gives up as many text questions as it got pictures, so a mix of levels stays an even mix.
+function withDiagrams(questions, { text, types, count, pics, figs = [], levels = ['medium'] }) {
   // How many have a picture depends on how picture-heavy the topics are; the rest stay plain (solve, define, explain).
   const share = pictureShare(text, figureGroups(figs));
   const limit = share ? Math.max(1, Math.round(count * share)) : 0;
-  const extra = [...diagramQuestions({ text, types, count, extra: pics, share, difficulty }), ...(types.includes('mc') ? figureQuestions(figs, count, share) : [])].slice(0, limit);
-  const all = extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
-  return all.map(fixMC).filter(Boolean);
+  const counts = splitCount(count, levels);
+  // text questions without one of the chosen levels (an AI that left it out) are spread over the levels in order
+  const written = questions.map((q, i) => (q.level && levels.includes(q.level) ? q : { ...q, level: levels[Math.min(levels.length - 1, Math.floor((i / questions.length) * levels.length))] }));
+  const pictures = levels.flatMap((l, i) => tag(diagramQuestions({ text, types, count: counts[i], extra: pics, share, difficulty: l }), l));
+  const topics = (types.includes('mc') ? figureQuestions(figs, count, share) : []).map((q, i) => ({ ...q, level: levels[i % levels.length] }));
+  const extra = dedupe([...pictures, ...topics]).slice(0, limit);
+  const kept = levels.flatMap((l, i) => written.filter((q) => q.level === l).slice(0, Math.max(0, counts[i] - extra.filter((e) => e.level === l).length)));
+  return byLevel([...kept, ...extra].map(fixMC).filter(Boolean));
 }
 
 export async function buildQuiz({ transcript, topic, details, grade, count, types, mode, onProgress, difficulty = 'medium' }) {
+  const levels = levelsOf(difficulty);
   if (mode !== 'ai') {
     let text = transcript;
     if (!text && topic) {
@@ -82,9 +97,20 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
       text = await wikipediaText(topic);
       if (!text) throw new Error(`Couldn't find "${topic}" online. Paste some notes instead.`);
     }
-    const qs = basic.makeQuiz(text, { count, types, grade, difficulty });
+    // each level makes its share; a level that comes up short (or repeats a fact) is topped up for that level only
+    const counts = splitCount(count, levels);
+    let qs = [];
+    for (let t = 0; t < 5; t++) {
+      for (const [i, l] of levels.entries()) {
+        const have = qs.filter((q) => q.level === l).length;
+        if (have >= counts[i]) continue;
+        qs = dedupe([...qs, ...tag(basic.makeQuiz(text, { count: counts[i] - have + 2, types, grade, difficulty: l }), l)]);
+      }
+      if (levels.every((l, i) => qs.filter((q) => q.level === l).length >= counts[i])) break;
+    }
+    qs = levels.flatMap((l, i) => qs.filter((q) => q.level === l).slice(0, counts[i]));
     const figs = await findFigures(`${text}\n${topic || ''}\n${details || ''}`);
-    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count, figs, difficulty });
+    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count, figs, levels });
     if (!questions.length) throw new Error('Not enough text to build questions. Add more notes.');
     return { questions, source: text };
   }
@@ -94,11 +120,13 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
   for (let i = 0; i < parts; i++) {
     onProgress(parts > 1 ? `Writing quiz questions (part ${i + 1} of ${parts})...` : 'Writing quiz questions...');
     questions.push(...(await ai.makeQuiz({
-      source: chunks[i], topic, details, grade, types, difficulty,
+      source: chunks[i], topic, details, grade, types, difficulty: levels,
       count: Math.max(2, Math.ceil(count / parts)),
     })));
   }
   const all = `${transcript || ''}\n${topic || ''}\n${details || ''}`;
   const figs = await findFigures(all);
-  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count, figs, difficulty }), source: transcript };
+  // a single level is stamped on every question; with a mix, the AI's own "level" is used (medium if it left one out)
+  const written = levels.length === 1 ? tag(questions.slice(0, count), levels[0]) : questions.slice(0, count);
+  return { questions: withDiagrams(written, { text: all, types, count, figs, levels }), source: transcript };
 }

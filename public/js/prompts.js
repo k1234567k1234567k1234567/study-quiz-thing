@@ -40,6 +40,18 @@ export const DIFFICULTY = {
   },
 };
 export const levelOf = (d) => (DIFFICULTY[d] ? d : 'medium');
+export const LEVEL_ORDER = ['easy', 'medium', 'hard'];
+// One level or several (older saved quizzes hold a single word): always an array, easiest first, medium if nothing valid.
+export const levelsOf = (d) => {
+  const list = LEVEL_ORDER.filter((l) => (Array.isArray(d) ? d : [d]).includes(l));
+  return list.length ? list : ['medium'];
+};
+export const levelText = (d) => levelsOf(d).map((l) => DIFFICULTY[l].label).join(' + ');
+// Splits a question count between the chosen levels as evenly as possible, for example 10 over easy and hard is 5 and 5, 5 over two is 3 and 2.
+export function splitCount(count, levels) {
+  const ls = levelsOf(levels);
+  return ls.map((l, i) => Math.floor(count / ls.length) + (i < count % ls.length ? 1 : 0));
+}
 
 export const QTYPES = {
   mc: 'Multiple choice',
@@ -63,6 +75,14 @@ Rules:
 - Answers are concise but complete and use the notes' own wording.
 - Never invent facts that are not in the notes.`;
 
+// One level: its style line. Several: how many questions of each, so a mix of easy and hard really has both.
+function difficultyText(difficulty, count) {
+  const ls = levelsOf(difficulty);
+  if (ls.length === 1) return DIFFICULTY[ls[0]].style;
+  const counts = splitCount(count, ls);
+  return `Difficulty MIX: write exactly ${ls.map((l, i) => `${counts[i]} ${l.toUpperCase()}`).join(' and ')} questions. ${ls.map((l) => DIFFICULTY[l].style).join(' ')} Put "level":"easy"|"medium"|"hard" on every question.`;
+}
+
 export function quizSystem({ grade, count, types, hasNotes, difficulty }) {
   const t = types.map((k) => ({
     mc: '"mc": multiple choice with exactly 4 options and "answer" = index (0-3) of the correct option',
@@ -70,7 +90,7 @@ export function quizSystem({ grade, count, types, hasNotes, difficulty }) {
     fill: '"fill": a sentence with ___ for the missing word or phrase, "answer" = the missing text (short)',
     short: '"short": open question, "answer" = a model answer in 1-2 sentences',
   }[k])).join('\n- ');
-  return `You write quizzes for students. ${GRADES[grade].style} ${DIFFICULTY[levelOf(difficulty)].style}
+  return `You write quizzes for students. ${GRADES[grade].style} ${difficultyText(difficulty, count)}
 Reply with ONLY a JSON array of exactly ${count} questions, no prose, no code fences:
 [{"type":"mc","q":"...","options":["..","..","..",".."],"answer":0,"explanation":"one sentence why","topic":"short label"}]
 Allowed question types (mix them):
