@@ -194,3 +194,7 @@ input[type=text], textarea { width: 100%; padding: 10px 12px; border-radius: 10p
 .tp .ln { height: 4px; border-radius: 3px; background: var(--muted); opacity: .6; width: 70%; } .tp .ln.s { width: 45%; }
 .tp .pill { align-self: flex-start; height: 8px; width: 28px; border-radius: 4px; background: var(--primary); }
 @media (min-width: 520px) { .themes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* difficulty choices: three cards, each with its short description */
+.seg.three { grid-template-columns: repeat(3, minmax(0, 1fr)); } .seg.three .segbtn { text-align: left; align-items: flex-start; gap: 4px; } .seg.three .segbtn small { font-size: .74rem; line-height: 1.3; }
+@media (max-width: 520px) { .seg.three { grid-template-columns: 1fr; } }

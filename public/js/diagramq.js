@@ -284,12 +284,55 @@ export function bioProblems(id, text) {
 
 /* ---------------- turning problems into questions and cards ---------------- */
 
-function toQuestion(p, types) {
+
+/* ---------------- difficulty ---------------- */
+
+// How hard a picture question is, from what it asks: longer prompts, more numbers, longer answers, several-step wording,
+// and wrong options that look like the right answer all make it harder. Topics are never changed, only which questions of a topic are used.
+const near = (a, b) => {
+  const x = new Set(String(a).toLowerCase().match(/[a-z0-9\u2212.-]+/g) || []);
+  const y = new Set(String(b).toLowerCase().match(/[a-z0-9\u2212.-]+/g) || []);
+  const both = [...x].filter((w) => y.has(w)).length;
+  return both / ((x.size + y.size - both) || 1);
+};
+export function hardness(p) {
+  const prompt = String(p.prompt || '');
+  const answer = String(p.answer ?? p.backText ?? '');
+  const numbers = (prompt.match(/[0-9]+(\.[0-9]+)?/g) || []).length + (answer.match(/[0-9]+(\.[0-9]+)?/g) || []).length;
+  const wrong = (p.wrong || []).slice(0, 3);
+  const sim = wrong.length ? wrong.reduce((n, w) => n + near(answer, w), 0) / wrong.length : 0;
+  const steps = /inverse|restrict|ambiguous|both|combination|invariant|image of|domain and range|end behaviour|as x|transformation|equation of|which two/i.test(prompt) ? 1 : 0;
+  return prompt.length / 70 + numbers * 0.25 + answer.length / 25 + sim * 2 + steps;
+}
+
+// Orders one topic's questions: easiest first, hardest first, or those nearest the middle. A little noise varies repeat quizzes.
+export function rank(list, level) {
+  const scored = list.map((p) => ({ p, s: hardness(p) * (0.9 + Math.random() * 0.2) }));
+  const sorted = [...scored].sort((a, b) => a.s - b.s);
+  const mid = sorted.length ? sorted[Math.floor(sorted.length / 2)].s : 0;
+  if (level === 'easy') return sorted.map((x) => x.p);
+  if (level === 'hard') return sorted.reverse().map((x) => x.p);
+  return scored.sort((a, b) => Math.abs(a.s - mid) - Math.abs(b.s - mid)).map((x) => x.p);
+}
+
+// Mix of question types: easy leans to picking an answer, hard to typing one.
+const TYPE_WEIGHT = { easy: { mc: 4, tf: 2, fill: 1, short: 0 }, medium: { mc: 3, tf: 1, fill: 1, short: 1 }, hard: { mc: 1, tf: 1, fill: 2, short: 2 } };
+
+function toQuestion(p, types, level = 'medium') {
   const options = [];
-  if (types.includes('mc')) options.push('mc', 'mc', 'mc');
-  if (types.includes('short')) options.push('short');
-  if ((p.kind === 'name' || p.tf) && types.includes('tf')) options.push('tf');
-  if ((p.kind === 'name' || p.fill) && types.includes('fill')) options.push('fill');
+  const W = TYPE_WEIGHT[level] || TYPE_WEIGHT.medium;
+  const add = (t) => { for (let i = 0; i < W[t]; i++) options.push(t); };
+  if (types.includes('mc')) add('mc');
+  if (types.includes('short')) add('short');
+  if ((p.kind === 'name' || p.tf) && types.includes('tf')) add('tf');
+  if ((p.kind === 'name' || p.fill) && types.includes('fill')) add('fill');
+  // a type the level gives no weight to is still used when it is the only one the student chose
+  if (!options.length) {
+    if (types.includes('mc')) options.push('mc');
+    else if (types.includes('short')) options.push('short');
+    else if ((p.kind === 'name' || p.tf) && types.includes('tf')) options.push('tf');
+    else if ((p.kind === 'name' || p.fill) && types.includes('fill')) options.push('fill');
+  }
   if (!options.length) return null;
   const type = pick(options);
   const base = { explanation: p.explain, topic: p.topic || (p.kind === 'graph' ? 'Graphs' : 'Diagrams'), diagram: p.diagram };
@@ -313,14 +356,21 @@ const toCard = (p) => ({ q: p.prompt, a: p.kind === 'name' ? p.backText : `${p.a
 
 // `extra` is a list of problem lists for pictures the AI designed (see aidiagram.js). Lists are taken in turn,
 // so a quiz on several topics gets different pictures; one picture repeats only when its own parts run out.
-function pool(text, extra = []) {
+// Several rounds of a maker, without repeats, so there are easier and harder questions to choose from.
+function gather(make, rounds) {
+  const seen = new Set(); const out = [];
+  for (let i = 0; i < rounds; i++) for (const p of make()) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); out.push(p); } }
+  return out;
+}
+
+function pool(text, extra = [], level = 'medium') {
   const d = detect(text);
   const made = d.extra.map((id) => {
     const seen = new Set(); const list = [];
     for (let i = 0; i < 4; i++) for (const p of GENERATORS[id]?.() || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); list.push(p); } }
-    return shuffle(list);
+    return rank(list, level);
   }).filter((l) => l.length);
-  const lists = [...d.bio.map((id) => bioProblems(id, text)), ...(d.graph.length ? [graphProblems(d.graph)] : []), ...made, ...extra];
+  const lists = [...d.bio.map((id) => rank(bioProblems(id, text), level)), ...(d.graph.length ? [rank(gather(() => graphProblems(d.graph), 4), level)] : []), ...made, ...extra.map((l) => rank(l, level))];
   const out = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
   return out;
@@ -340,12 +390,12 @@ export function pictureShare(text, more = []) {
   return Math.min(0.7, Math.max(0.1, share));
 }
 
-export function diagramQuestions({ text, types, count, extra, share = 0.3 }) {
-  const all = pool(text, extra);
+export function diagramQuestions({ text, types, count, extra, share = 0.3, difficulty = 'medium' }) {
+  const all = pool(text, extra, difficulty);
   if (!all.length) return [];
   const want = Math.min(Math.max(1, Math.round(count * share)), all.length);
   const qs = [];
-  for (const p of all) { const q = toQuestion(p, types); if (q) qs.push(q); if (qs.length >= want) break; }
+  for (const p of all) { const q = toQuestion(p, types, difficulty); if (q) qs.push(q); if (qs.length >= want) break; }
   return qs;
 }
 

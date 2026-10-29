@@ -1,6 +1,6 @@
 import * as store from './store.js';
 import * as ai from './ai.js';
-import { GRADES, QTYPES } from './prompts.js';
+import { GRADES, QTYPES, DIFFICULTY, levelOf } from './prompts.js';
 import { readNotes, buildCards, buildQuiz } from './pipeline.js';
 import { fileToDataUrl, rotateDataUrl } from './images.js';
 import { pdfPageCount, readPdf } from './pdf.js';
@@ -119,7 +119,7 @@ function renderHome() {
         h('span', { class: `badge ${p.type}` }, p.type === 'quiz' ? 'Quiz' : 'Cue cards'),
         h('h3', {}, p.name),
         h('p', { class: 'muted small' }, p.type === 'quiz'
-          ? `${p.questions.length} questions${p.grade ? ` · ${GRADES[p.grade].label}` : ''}${p.lastResult ? ` · last ${p.lastResult.score}/${p.lastResult.total}` : ''}`
+          ? `${p.questions.length} questions${p.grade ? ` · ${GRADES[p.grade].label}` : ''} · ${DIFFICULTY[levelOf(p.difficulty)].label}${p.lastResult ? ` · last ${p.lastResult.score}/${p.lastResult.total}` : ''}`
           : `${p.cards.length} cards`))))
       : h('div', { class: 'empty' },
         h('h2', {}, 'Nothing here yet'),
@@ -134,7 +134,7 @@ function renderHome() {
 
 /* ---------- wizard ---------- */
 let wiz = null;
-const freshWiz = () => ({ step: 1, type: null, name: '', grade: 'academic', topic: '', details: '', notes: '', images: [], count: 10, types: ['mc', 'tf', 'fill', 'short'], transcript: '', error: '' });
+const freshWiz = () => ({ step: 1, type: null, name: '', grade: 'academic', difficulty: 'medium', topic: '', details: '', notes: '', images: [], count: 10, types: ['mc', 'tf', 'fill', 'short'], transcript: '', error: '' });
 
 function renderWizard() {
   wiz ||= freshWiz();
@@ -228,6 +228,10 @@ function wizSource() {
       h('label', { class: 'field' }, h('span', {}, isQuiz ? 'Notes' : 'Typed notes'), notes),
       h('label', { class: 'field' }, h('span', {}, 'Details'), details)),
     isQuiz && h('section', { class: 'stack' },
+      h('h2', {}, 'Difficulty'),
+      h('div', { class: 'seg three', role: 'group', 'aria-label': 'Difficulty' }, Object.entries(DIFFICULTY).map(([k, d]) => h('button', { class: `segbtn ${wiz.difficulty === k ? 'on' : ''}`, 'aria-pressed': String(wiz.difficulty === k), onclick: () => { keep(); wiz.difficulty = k; renderWizard(); } }, h('strong', {}, d.label), h('small', {}, d.desc)))),
+      h('p', { class: 'muted small' }, 'Same topics either way. You can change this later from the quiz page.')),
+    isQuiz && h('section', { class: 'stack' },
       h('h2', {}, 'Quiz options'),
       h('div', { class: 'row wrapr' }, [5, 10, 15, 20, 30].map((n) => h('button', { class: `pill ${wiz.count === n ? 'on' : ''}`, onclick: () => { keep(); wiz.count = n; renderWizard(); } }, `${n} questions`))),
       h('div', { class: 'row wrapr' }, typeBoxes)),
@@ -304,8 +308,8 @@ async function generate(forceMode) {
       if (!cards.length) throw new Error('No cards could be made from that text.');
       project = store.add({ name: wiz.name.trim() || autoName(wiz.transcript, 'Cue cards'), type: 'cards', transcript: common.transcript, details: wiz.details, cards: cards.map((c) => ({ id: c.id || store.uid(), ...c, weak: false })), mode: m });
     } else {
-      const { questions, source } = await buildQuiz({ ...common, topic: wiz.topic.trim(), grade: wiz.grade, count: wiz.count, types: wiz.types });
-      project = store.add({ name: wiz.name.trim() || wiz.topic.trim() || autoName(wiz.transcript, 'Quiz'), type: 'quiz', grade: wiz.grade, topic: wiz.topic.trim(), details: wiz.details, transcript: source || '', count: wiz.count, types: wiz.types, questions, mode: m });
+      const { questions, source } = await buildQuiz({ ...common, topic: wiz.topic.trim(), grade: wiz.grade, difficulty: wiz.difficulty, count: wiz.count, types: wiz.types });
+      project = store.add({ name: wiz.name.trim() || wiz.topic.trim() || autoName(wiz.transcript, 'Quiz'), type: 'quiz', grade: wiz.grade, difficulty: wiz.difficulty, topic: wiz.topic.trim(), details: wiz.details, transcript: source || '', count: wiz.count, types: wiz.types, questions, mode: m });
     }
     b.close();
     wiz = null;
@@ -343,7 +347,7 @@ function renderProject(p) {
     const b = busy('Working on it...');
     try {
       if (isQuiz) {
-        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
+        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, difficulty: levelOf(p.difficulty), count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
         store.update(p.id, { questions, lastResult: null });
       } else {
         const cards = await buildCards({ transcript: p.transcript, details: p.details, mode: mode(), onProgress: b.set });
@@ -353,6 +357,28 @@ function renderProject(p) {
       toast(isQuiz ? 'New quiz ready' : 'Cards regenerated');
       renderProject(store.get(p.id));
     } catch (e) { b.close(); toast(e.message); }
+  };
+  // Rebuilds the same quiz (same notes, topic, length and question types) at another difficulty.
+  const changeDifficulty = () => {
+    if (!p.transcript.trim() && !p.topic) return toast('No source text saved for this project');
+    const current = levelOf(p.difficulty);
+    let close;
+    const pick = async (level) => {
+      close();
+      if (level === current) return;
+      const b = busy(`Making the questions ${DIFFICULTY[level].label.toLowerCase()}...`);
+      try {
+        const { questions } = await buildQuiz({ transcript: p.transcript, topic: p.topic, details: p.details, grade: p.grade, difficulty: level, count: p.count || 10, types: p.types || Object.keys(QTYPES), mode: mode(), onProgress: b.set });
+        store.update(p.id, { questions, difficulty: level, lastResult: null });
+        b.close();
+        toast(`Now ${DIFFICULTY[level].label}`);
+        renderProject(store.get(p.id));
+      } catch (e) { b.close(); toast(e.message); }
+    };
+    const body = h('div', { class: 'stack' },
+      h('p', { class: 'muted' }, 'Rebuilds the questions from your saved notes. The topics stay the same; the questions get easier or harder. Questions you edited or deleted come back, and your last score is cleared.'),
+      h('div', { class: 'seg three' }, Object.entries(DIFFICULTY).map(([k, d]) => h('button', { class: `segbtn ${current === k ? 'on' : ''}`, 'aria-pressed': String(current === k), onclick: () => pick(k) }, h('strong', {}, d.label), h('small', {}, d.desc)))));
+    close = modal('Change difficulty', body, [{ label: 'Cancel' }]);
   };
   const del = () => modal('Delete project?', h('p', {}, `"${p.name}" will be removed from this browser.`), [{ label: 'Cancel' }, { label: 'Delete', primary: true, onClick: () => { store.remove(p.id); go('#/'); } }]);
   const showNotes = () => {
@@ -368,12 +394,13 @@ function renderProject(p) {
     banner(p, () => { if (!p.art) store.update(p.id, { art: true }); }),
     h('div', { class: 'row between' },
       h('div', {}, h('span', { class: `badge ${p.type}` }, isQuiz ? 'Quiz' : 'Cue cards'), h('h1', {}, p.name),
-        h('p', { class: 'muted small' }, isQuiz ? `${p.questions.length} questions · ${GRADES[p.grade].label}${p.lastResult ? ` · last score ${p.lastResult.score}/${p.lastResult.total}` : ''}` : `${p.cards.length} cards${p.cards.some((c) => c.weak) ? ` · ${p.cards.filter((c) => c.weak).length} marked for review` : ''}`)),
+        h('p', { class: 'muted small' }, isQuiz ? `${p.questions.length} questions · ${GRADES[p.grade].label} · ${DIFFICULTY[levelOf(p.difficulty)].label}${p.lastResult ? ` · last score ${p.lastResult.score}/${p.lastResult.total}` : ''}` : `${p.cards.length} cards${p.cards.some((c) => c.weak) ? ` · ${p.cards.filter((c) => c.weak).length} marked for review` : ''}`)),
       h('a', { class: 'btn primary', href: `#/${isQuiz ? 'quiz' : 'cards'}/${p.id}` }, isQuiz ? 'Take quiz' : 'Study cards')),
     h('div', { class: 'row wrapr' },
       h('button', { class: 'btn', onclick: rename }, 'Rename'),
       h('button', { class: 'btn', onclick: showNotes }, 'View notes text'),
       h('button', { class: 'btn', onclick: regen }, isQuiz ? 'New quiz from same notes' : 'Regenerate cards'),
+      isQuiz && h('button', { class: 'btn', onclick: changeDifficulty }, `Difficulty: ${DIFFICULTY[levelOf(p.difficulty)].label}`),
       !isQuiz && h('button', { class: 'btn', onclick: () => printCards(p) }, 'Print cards'),
       !isQuiz && h('button', { class: 'btn', onclick: () => { const c = { id: store.uid(), q: '', a: '', topic: '', weak: false }; p.cards.push(c); store.update(p.id, { cards: p.cards }); renderProject(store.get(p.id)); } }, '+ Add card'),
       h('button', { class: 'btn danger', onclick: del }, 'Delete')),

@@ -121,7 +121,7 @@ function normQuestion(q) {
   return answer ? { ...out, answer } : null;
 }
 
-export function makeQuiz({ source, topic, details, grade, count, types }) {
+export function makeQuiz({ source, topic, details, grade, count, types, difficulty }) {
   const hasNotes = Boolean(source && source.trim());
   const user = [
     topic && `Topic: ${topic}`,
@@ -129,7 +129,7 @@ export function makeQuiz({ source, topic, details, grade, count, types }) {
     hasNotes && `NOTES:\n${source}`,
   ].filter(Boolean).join('\n\n');
   return jsonCall(
-    [{ role: 'system', content: quizSystem({ grade, count, types, hasNotes }) }, { role: 'user', content: user }],
+    [{ role: 'system', content: quizSystem({ grade, count, types, hasNotes, difficulty }) }, { role: 'user', content: user }],
     { maxTokens: 4500, temperature: 0.5 },
     (arr) => (Array.isArray(arr) ? arr : arr.questions || []).map(normQuestion).filter(Boolean),
   );

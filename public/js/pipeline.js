@@ -65,16 +65,16 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
 }
 
 // Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
-function withDiagrams(questions, { text, types, count, pics, figs = [] }) {
+function withDiagrams(questions, { text, types, count, pics, figs = [], difficulty = 'medium' }) {
   // How many have a picture depends on how picture-heavy the topics are; the rest stay plain (solve, define, explain).
   const share = pictureShare(text, figureGroups(figs));
   const limit = share ? Math.max(1, Math.round(count * share)) : 0;
-  const extra = [...diagramQuestions({ text, types, count, extra: pics, share }), ...(types.includes('mc') ? figureQuestions(figs, count, share) : [])].slice(0, limit);
+  const extra = [...diagramQuestions({ text, types, count, extra: pics, share, difficulty }), ...(types.includes('mc') ? figureQuestions(figs, count, share) : [])].slice(0, limit);
   const all = extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
   return all.map(fixMC).filter(Boolean);
 }
 
-export async function buildQuiz({ transcript, topic, details, grade, count, types, mode, onProgress }) {
+export async function buildQuiz({ transcript, topic, details, grade, count, types, mode, onProgress, difficulty = 'medium' }) {
   if (mode !== 'ai') {
     let text = transcript;
     if (!text && topic) {
@@ -82,9 +82,9 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
       text = await wikipediaText(topic);
       if (!text) throw new Error(`Couldn't find "${topic}" online. Paste some notes instead.`);
     }
-    const qs = basic.makeQuiz(text, { count, types, grade });
+    const qs = basic.makeQuiz(text, { count, types, grade, difficulty });
     const figs = await findFigures(`${text}\n${topic || ''}\n${details || ''}`);
-    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count, figs });
+    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count, figs, difficulty });
     if (!questions.length) throw new Error('Not enough text to build questions. Add more notes.');
     return { questions, source: text };
   }
@@ -94,11 +94,11 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
   for (let i = 0; i < parts; i++) {
     onProgress(parts > 1 ? `Writing quiz questions (part ${i + 1} of ${parts})...` : 'Writing quiz questions...');
     questions.push(...(await ai.makeQuiz({
-      source: chunks[i], topic, details, grade, types,
+      source: chunks[i], topic, details, grade, types, difficulty,
       count: Math.max(2, Math.ceil(count / parts)),
     })));
   }
   const all = `${transcript || ''}\n${topic || ''}\n${details || ''}`;
   const figs = await findFigures(all);
-  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count, figs }), source: transcript };
+  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count, figs, difficulty }), source: transcript };
 }

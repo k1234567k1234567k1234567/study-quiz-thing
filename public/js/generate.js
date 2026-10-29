@@ -113,12 +113,33 @@ const MIX = {
   university: { mc: 2, tf: 2, fill: 2, short: 4 },
 };
 
-export function makeQuiz(text, { count, types, grade }) {
+// Question types lean towards recall (easy) or towards typing an answer (hard).
+const LEVEL_MIX = { easy: { mc: 1.5, tf: 1.5, fill: 0.7, short: 0.3 }, medium: { mc: 1, tf: 1, fill: 1, short: 1 }, hard: { mc: 0.8, tf: 0.4, fill: 1.5, short: 2 } };
+
+const toks = (s) => new Set(String(s).toLowerCase().match(/[a-z0-9]+/g) || []);
+// 0 = nothing in common, 1 = the same: shared words, and similar length.
+const alike = (a, b) => {
+  const x = toks(a); const y = toks(b);
+  const both = [...x].filter((w) => y.has(w)).length;
+  const jac = both / ((x.size + y.size - both) || 1);
+  return jac + (1 - Math.abs(a.length - b.length) / (Math.max(a.length, b.length) || 1));
+};
+// Wrong options: far from the answer when easy, close to it when hard, random when medium.
+export function pickWrong(correct, candidates, level, n = 3) {
+  const list = [...new Set(candidates)].filter((c) => c && c.toLowerCase() !== String(correct).toLowerCase());
+  if (level === 'medium') return shuffle(list).slice(0, n);
+  const scored = shuffle(list).map((c) => ({ c, s: alike(correct, c) }));
+  scored.sort((a, b) => (level === 'hard' ? b.s - a.s : a.s - b.s));
+  return scored.slice(0, n).map((x) => x.c);
+}
+
+export function makeQuiz(text, { count, types, grade, difficulty = 'medium' }) {
   const { facts } = parse(text);
   const items = facts.map((f) => ({ ...f, s: split(f.line) }));
   const defs = items.filter((x) => x.s);
   const pool = [];
-  const weights = Object.entries(MIX[grade]).filter(([t]) => types.includes(t));
+  const mixL = LEVEL_MIX[difficulty] || LEVEL_MIX.medium;
+  const weights = Object.entries(MIX[grade]).filter(([t]) => types.includes(t)).map(([t, w]) => [t, w * mixL[t]]);
   const total = weights.reduce((n, [, w]) => n + w, 0) || 1;
   const plan = [];
   for (let i = 0; i < Math.min(count, items.length); i++) {
@@ -129,18 +150,20 @@ export function makeQuiz(text, { count, types, grade }) {
   plan.forEach((type, i) => {
     const f = ordered[i % Math.max(ordered.length, 1)];
     if (!f) return;
-    const q = build(type, f, defs, items);
+    const q = build(type, f, defs, items, difficulty);
     if (q) pool.push(q);
   });
   return pool;
 }
 
-function build(type, f, defs, items) {
+function build(type, f, defs, items, level = 'medium') {
   const topic = f.heading;
   if (type === 'mc' && f.s && defs.length >= 4) {
-    const wrong = shuffle(defs.filter((d) => d !== f)).slice(0, 3).map((d) => cap(d.s.def));
-    const options = shuffle([cap(f.s.def), ...wrong]);
-    return { type: 'mc', q: `Which statement correctly describes ${f.s.term}?`, options, answer: options.indexOf(cap(f.s.def)), explanation: sentence(f.line), topic };
+    const wrong = pickWrong(cap(f.s.def), defs.filter((d) => d !== f).map((d) => cap(d.s.def)), level);
+    if (wrong.length === 3) {
+      const options = shuffle([cap(f.s.def), ...wrong]);
+      return { type: 'mc', q: `Which statement correctly describes ${f.s.term}?`, options, answer: options.indexOf(cap(f.s.def)), explanation: sentence(f.line), topic };
+    }
   }
   if (type === 'tf' && f.s && defs.length >= 2) {
     const truth = Math.random() < 0.5;
@@ -155,7 +178,7 @@ function build(type, f, defs, items) {
     const c = cloze(f.line);
     if (!c) return null;
     if (type === 'mc' && items.length >= 4) {
-      const wrong = shuffle(items.map((x) => keyWord(x.line)?.w).filter((w) => w && w.toLowerCase() !== c.answer.toLowerCase())).filter((w, i, a) => a.indexOf(w) === i).slice(0, 3);
+      const wrong = pickWrong(c.answer, items.map((x) => keyWord(x.line)?.w), level);
       if (wrong.length === 3) {
         const options = shuffle([c.answer, ...wrong]);
         return { type: 'mc', q: `Choose the word that fills the blank: ${c.text}`, options, answer: options.indexOf(c.answer), explanation: sentence(f.line), topic };

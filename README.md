@@ -96,3 +96,11 @@ Unit 3 lesson 3-3 (`props` in `diagramq2.js`): graphs of y = √x and y = 1/x wi
 ## Multiple choice safety net
 
 `public/js/options.js` removes options that read the same (for example "-2" and "−2", or "−2.0"), keeps the right answer, and drops any question left with fewer than two different options. It runs on AI-written questions (`ai.js`), on the picture questions (`diagramq.js`, which skips a problem and takes the next one) and on the finished quiz (`pipeline.js`).
+
+## Difficulty (Easy, Medium, Hard)
+
+Quizzes have a difficulty, picked when you set the quiz up and changeable later with the "Difficulty" button on the quiz page, which rebuilds the questions from the saved notes (same topics, same length and question types). The levels and their descriptions are in `DIFFICULTY` in `public/js/prompts.js`.
+
+- AI mode: the level is added to the prompt (easy is direct recall with clearly different wrong options; hard is multi-step with wrong options close to the answer).
+- Basic mode (`generate.js`): easy leans to multiple choice and true/false and picks wrong options that look different; hard leans to typed answers and picks wrong options that look like the right one.
+- Picture questions (`diagramq.js`): each question gets a hardness score (longer wording, more numbers, longer answers, several-step wording, look-alike wrong options), and each topic uses its easiest, middle or hardest questions. The topics themselves do not change.

@@ -21,6 +21,26 @@ export const GRADES = {
   },
 };
 
+// How hard the questions are. The topics stay the same; only the depth and how close the wrong options are change.
+export const DIFFICULTY = {
+  easy: {
+    label: 'Easy',
+    desc: 'Direct recall and one-step questions. Wrong options are clearly different from the right answer.',
+    style: 'Difficulty: EASY. Ask direct recall questions (definitions, single facts, one-step calculations) in simple wording. Wrong options must be clearly different from the correct one.',
+  },
+  medium: {
+    label: 'Medium',
+    desc: 'A mix of recall and understanding. Wrong options are believable. Like a normal test.',
+    style: 'Difficulty: MEDIUM. Mix recall with understanding (why and how, short calculations). Wrong options should be believable.',
+  },
+  hard: {
+    label: 'Hard',
+    desc: 'Multi-step and application questions. Wrong options are close to the right answer, so you have to be sure.',
+    style: 'Difficulty: HARD. Ask multi-step, application and reasoning questions (explain why, predict what happens, compare, combine two ideas, calculations with several steps). Wrong options must be very close to the correct answer and reflect common mistakes. Stay on the topics in the notes: do not add new topics.',
+  },
+};
+export const levelOf = (d) => (DIFFICULTY[d] ? d : 'medium');
+
 export const QTYPES = {
   mc: 'Multiple choice',
   tf: 'True / false',
@@ -43,14 +63,14 @@ Rules:
 - Answers are concise but complete and use the notes' own wording.
 - Never invent facts that are not in the notes.`;
 
-export function quizSystem({ grade, count, types, hasNotes }) {
+export function quizSystem({ grade, count, types, hasNotes, difficulty }) {
   const t = types.map((k) => ({
     mc: '"mc": multiple choice with exactly 4 options and "answer" = index (0-3) of the correct option',
     tf: '"tf": true/false statement with "answer" = true or false',
     fill: '"fill": a sentence with ___ for the missing word or phrase, "answer" = the missing text (short)',
     short: '"short": open question, "answer" = a model answer in 1-2 sentences',
   }[k])).join('\n- ');
-  return `You write quizzes for students. ${GRADES[grade].style}
+  return `You write quizzes for students. ${GRADES[grade].style} ${DIFFICULTY[levelOf(difficulty)].style}
 Reply with ONLY a JSON array of exactly ${count} questions, no prose, no code fences:
 [{"type":"mc","q":"...","options":["..","..","..",".."],"answer":0,"explanation":"one sentence why","topic":"short label"}]
 Allowed question types (mix them):
