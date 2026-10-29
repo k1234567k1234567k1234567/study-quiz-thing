@@ -71,6 +71,7 @@ For topics the code cannot draw itself (photosynthesis, the water, carbon and ni
 
 - `api/_commons.js` searches Commons for SVG or PNG diagrams, keeps only openly licensed ones (CC, public domain), and only files whose name or description contains the topic's words. `api/image.js` and `server.js` expose it as `GET /api/image?q=topic`.
 - `public/js/figures.js` picks topics from the notes and builds the cards ("What does this diagram show?") and multiple choice questions. The wrong answers come from other topics.
+- Files labelled in another language (a name ending in "ku", "(German)", "espanol", or written in non-Latin letters) are skipped, and English-labelled files come first.
 - Every picture shows a credit line linking to its Commons page, on a white panel so it reads on the black theme.
 - If the lookup fails, the cards and quizzes are made without the pictures. Maths, physics and biology diagrams drawn by code are unchanged.
 
