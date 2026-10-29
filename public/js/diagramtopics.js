@@ -17,6 +17,7 @@ const RULES = [
   ['circle', (t) => has(t, /\brelations?\b|x\s*[²^]\s*2?\s*\+\s*y|circle/i) && has(t, /\bdomain\b/i) && has(t, /\brange\b/i)],
   ['mapping', (t) => has(t, /mapping diagram|function notation|\brelations?\b/i) && has(t, /function/i)],
   ['transform', (t) => has(t, /transformations?|translations?|reflections?|stretch(es)?|compressions?|invariant/i) && has(t, /f\(x\)|graph of|parent function|y\s*=\s*f|invariant/i)],
+  ['props', (t) => has(t, /(f\(x\)\s*=\s*(\u221a|sqrt)|y\s*=\s*(\u221a|sqrt)|square root function|radical function)/i) && has(t, /1\s*\/\s*x|reciprocal function|asymptote|properties of/i)],
   ['inverse', (t) => has(t, /inverse (function|relation)|inverse of (a )?function|f\s*(\^|⁻)\s*-?\s*(1|¹)|inverse of f/i)],
   ['rtri', (t) => words(t, /\b(soh ?cah ?toa|sine|cosine|tangent|hypotenuse|right (angle )?triangles?|pythagorean|trigonometr\w+|opposite|adjacent)\b/gi) >= 2 && has(t, /triangle|soh ?cah ?toa|trigonometr|hypotenuse|pythagor/i)],
   ['special', (t) => has(t, /special triangles?|30\D{0,3}60\D{0,3}90|45\D{0,3}45\D{0,3}90|exact values? of (sin|cos|tan)/i)],
@@ -68,7 +69,7 @@ const DENSITY = {
   neuron: 0.7, dna: 0.6, virus: 0.6, phage: 0.6, bacterium: 0.6, flower: 0.65, mushroom: 0.55, 'plant-cell': 0.7, 'animal-cell': 0.7,
   graph: 0.6,
   // maths
-  read: 0.65, vlt: 0.6, circle: 0.45, mapping: 0.55, transform: 0.65, inverse: 0.5, rtri: 0.6, special: 0.55, std: 0.55, unitcircle: 0.6, oblique: 0.55, ambig: 0.55,
+  props: 0.6, read: 0.65, vlt: 0.6, circle: 0.45, mapping: 0.55, transform: 0.65, inverse: 0.5, rtri: 0.6, special: 0.55, std: 0.55, unitcircle: 0.6, oblique: 0.55, ambig: 0.55,
   sinus: 0.6, linquad: 0.5, algarea: 0.4, radshape: 0.4, disc: 0.45, quadread: 0.5, drpiece: 0.55, elev: 0.65, exp: 0.4, ftype: 0.45, seq: 0.2, pascal: 0.2,
   // physics
   fbd: 0.65, motion: 0.5, circuit: 0.65, wave: 0.6,

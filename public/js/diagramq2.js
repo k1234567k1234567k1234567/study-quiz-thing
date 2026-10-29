@@ -970,8 +970,68 @@ export function elevProblems() {
   return out;
 }
 
+
+/* ================= Unit 3 lesson 3-3: properties of y = √x and y = 1/x ================= */
+
+export function propsProblems() {
+  const topic = 'Square root and reciprocal functions';
+  const out = [];
+  if (Math.random() < 0.5) {
+    const f = { type: 'sqrt', a: 1, h: 0, k: 0 };
+    const diagram = { kind: 'graph', f, view: [-2, 10, -2, 5], xstep: 1, ystep: 1, marks: [{ x: 1, y: 1, color: 'primary' }, { x: 4, y: 2, color: 'primary' }, { x: 9, y: 3, color: 'primary' }], label: 'Graph of y = √x' };
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'State the domain of the function shown.', answer: 'x ≥ 0', wrong: ['all real numbers', 'x > 0', 'x ≤ 0'],
+      explain: 'You cannot take the square root of a negative number, so the graph starts at x = 0 and goes right.', tf: { q: 'The domain of y = √x is all real numbers.', answer: false },
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'State the range of the function shown.', answer: 'y ≥ 0', wrong: ['all real numbers', 'y > 0', 'y ≤ 0'],
+      explain: 'The graph never goes below the x-axis, and it touches it at the origin, so y ≥ 0.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'Which point is the starting point of this graph?', answer: '(0, 0)', wrong: ['(1, 1)', '(0, 1)', '(1, 0)'],
+      explain: 'y = √0 = 0, so the graph starts at the origin.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'As x gets larger, what happens to y?', answer: 'It keeps increasing, but more and more slowly', wrong: ['It levels off at a horizontal asymptote', 'It decreases', 'It increases at a steady rate'],
+      explain: 'The curve keeps rising without a limit (it has no horizontal asymptote), but it gets flatter.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'Which of these points is on the graph?', answer: '(9, 3)', wrong: ['(3, 9)', '(4, 4)', '(−4, 2)'],
+      explain: '√9 = 3, so (9, 3) is on the graph.',
+    });
+  } else {
+    const f = { type: 'recip', a: 1, h: 0, k: 0 };
+    const diagram = { kind: 'graph', f, view: [-6, 6, -6, 6], label: 'Graph of y = 1/x' };
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'What are the equations of the asymptotes of the graph shown?', answer: 'x = 0 and y = 0', wrong: ['x = 1 and y = 1', 'x = 0 only', 'y = 0 only'],
+      explain: 'The curve gets closer and closer to the y-axis (x = 0) and the x-axis (y = 0) without touching them.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'State the domain and range of the function shown.', answer: 'Domain: x ≠ 0; Range: y ≠ 0', wrong: ['Domain: all real numbers; Range: y ≠ 0', 'Domain: x ≠ 0; Range: all real numbers', 'Domain: x > 0; Range: y > 0'],
+      explain: 'You cannot divide by zero, and the output is never zero, so both x and y exclude 0.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'As x → 0⁺ (x gets close to 0 from the right), what happens to f(x)?', answer: 'f(x) → ∞', wrong: ['f(x) → −∞', 'f(x) → 0', 'f(x) → 1'],
+      explain: 'Just to the right of the y-axis the curve shoots up without limit.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'As x → −∞ (x gets very negative), what happens to f(x)?', answer: 'f(x) → 0 from below', wrong: ['f(x) → ∞', 'f(x) → −∞', 'f(x) → 0 from above'],
+      explain: 'On the far left the curve is below the x-axis and gets closer to it.',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'Which two quadrants does the graph pass through?', answer: 'Quadrants I and III', wrong: ['Quadrants II and IV', 'Quadrants I and II', 'Quadrants I and IV'],
+      explain: 'x and y always have the same sign (y = 1/x), so the graph is in Quadrant I (both positive) and Quadrant III (both negative).',
+    });
+    out.push({
+      kind: 'graph', topic, diagram, prompt: 'Does the graph have any x-intercepts or y-intercepts?', answer: 'No intercepts', wrong: ['Only an x-intercept', 'Only a y-intercept', 'Both an x- and a y-intercept'],
+      explain: 'The curve never touches either axis, so it has no intercepts.',
+    });
+  }
+  return out;
+}
+
 export const MATH = {
   read: readProblems, vlt: vltProblems, circle: circleProblems, mapping: mappingProblems, transform: transformProblems, inverse: inverseProblems,
-  rtri: rightTriProblems, special: specialProblems, std: angleProblems, unitcircle: unitCircleProblems, oblique: obliqueProblems, ambig: ambiguousProblems,
+  props: propsProblems, rtri: rightTriProblems, special: specialProblems, std: angleProblems, unitcircle: unitCircleProblems, oblique: obliqueProblems, ambig: ambiguousProblems,
   sinus: sinusoidProblems, linquad: linQuadProblems, algarea: algAreaProblems, radshape: radShapeProblems, disc: discriminantProblems, quadread: quadReadProblems, drpiece: drProblems, elev: elevProblems, exp: expProblems, ftype: typeProblems, seq: sequenceProblems, pascal: pascalProblems,
 };
