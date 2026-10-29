@@ -359,10 +359,24 @@ function renderAi(spec) {
 
 /* ---------------- entry point ---------------- */
 
+function renderPhoto(spec) {
+  const fig = document.createElement('figure');
+  fig.className = 'photo';
+  const img = document.createElement('img');
+  img.src = spec.src; img.alt = spec.alt || spec.title || 'Diagram'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+  const cap = document.createElement('figcaption');
+  const a = document.createElement('a');
+  a.href = spec.page || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = spec.credit || 'Wikimedia Commons';
+  cap.append('Wikimedia Commons · ', a);
+  fig.append(img, cap);
+  return fig;
+}
+
 export function renderDiagram(spec) {
   const box = document.createElement('div');
   box.className = 'diagram';
-  try { box.append(spec.kind === 'graph' ? renderGraph(spec) : hasKind(spec.kind) ? renderKind(spec) : spec.kind === 'ai' ? renderAi(spec) : renderBio(spec)); }
+  try {
+    if (spec.kind === 'photo') { box.append(renderPhoto(spec)); return box; } box.append(spec.kind === 'graph' ? renderGraph(spec) : hasKind(spec.kind) ? renderKind(spec) : spec.kind === 'ai' ? renderAi(spec) : renderBio(spec)); }
   catch { box.textContent = '(diagram unavailable)'; }
   return box;
 }

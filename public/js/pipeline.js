@@ -4,6 +4,7 @@ import * as basic from './generate.js';
 import { ocrImages } from './ocr.js';
 import { wikipediaText } from './topics.js';
 import { diagramQuestions, diagramCards } from './diagramq.js';
+import { findFigures, figureCards, figureQuestions } from './figures.js';
 
 const chunkText = (text, size) => {
   const chunks = [];
@@ -39,7 +40,8 @@ function uncovered(transcript, cards) {
 }
 
 export async function buildCards({ transcript, details, mode, onProgress }) {
-  if (mode !== 'ai') return [...basic.makeCards(transcript), ...diagramCards({ text: `${transcript}\n${details || ''}` })];
+  const figs = await findFigures(`${transcript}\n${details || ''}`);
+  if (mode !== 'ai') return [...basic.makeCards(transcript), ...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)];
   const cards = [];
   const chunks = chunkText(transcript, 2000);
   for (let i = 0; i < chunks.length; i++) {
@@ -51,12 +53,12 @@ export async function buildCards({ transcript, details, mode, onProgress }) {
     onProgress('Checking nothing was missed...');
     try { cards.push(...(await ai.makeCards(missed.join('\n'), details))); } catch { /* the main cards are still good */ }
   }
-  return [...cards, ...diagramCards({ text: `${transcript}\n${details || ''}` })];
+  return [...cards, ...diagramCards({ text: `${transcript}\n${details || ''}` }), ...figureCards(figs)];
 }
 
 // Questions that need a picture (cell diagrams, function graphs) replace the last few text questions.
-function withDiagrams(questions, { text, types, count, pics }) {
-  const extra = diagramQuestions({ text, types, count, extra: pics });
+function withDiagrams(questions, { text, types, count, pics, figs = [] }) {
+  const extra = [...diagramQuestions({ text, types, count, extra: pics }), ...(types.includes('mc') ? figureQuestions(figs, count) : [])];
   return extra.length ? [...questions.slice(0, Math.max(0, count - extra.length)), ...extra] : questions;
 }
 
@@ -69,7 +71,8 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
       if (!text) throw new Error(`Couldn't find "${topic}" online. Paste some notes instead.`);
     }
     const qs = basic.makeQuiz(text, { count, types, grade });
-    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count });
+    const figs = await findFigures(`${text}\n${topic || ''}\n${details || ''}`);
+    const questions = withDiagrams(qs, { text: `${text}\n${topic || ''}\n${details || ''}`, types, count, figs });
     if (!questions.length) throw new Error('Not enough text to build questions. Add more notes.');
     return { questions, source: text };
   }
@@ -84,5 +87,6 @@ export async function buildQuiz({ transcript, topic, details, grade, count, type
     })));
   }
   const all = `${transcript || ''}\n${topic || ''}\n${details || ''}`;
-  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count }), source: transcript };
+  const figs = await findFigures(all);
+  return { questions: withDiagrams(questions.slice(0, count), { text: all, types, count, figs }), source: transcript };
 }

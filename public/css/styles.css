@@ -101,3 +101,6 @@ input[type=text], textarea { width: 100%; padding: 10px 12px; border-radius: 10p
   .row.between { flex-wrap: wrap; }
 }
 .diagram { display: flex; justify-content: center; margin: 4px 0; } .diagram svg { width: 100%; max-width: 380px; height: auto; color: var(--text); }
+
+.photo { margin: 0; width: 100%; max-width: 420px; } .photo img { display: block; width: 100%; height: auto; max-height: 340px; object-fit: contain; background: #fff; border-radius: 10px; padding: 6px; }
+.photo figcaption { font-size: .72rem; color: var(--muted); margin-top: 4px; text-align: center; } .photo figcaption a { color: inherit; }

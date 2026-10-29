@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { forward, hasKey, describe, selfTest } from './api/_ai.js';
+import { findImages } from './api/_commons.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -93,6 +94,13 @@ http.createServer(async (req, res) => {
     const { pathname } = new URL(req.url, 'http://x');
     if (pathname === '/api/status' && req.method === 'GET') {
       return send(res, 200, describe());
+    }
+    if (pathname === '/api/image' && req.method === 'GET') {
+      const sp = new URL(req.url, 'http://x').searchParams;
+      const q = (sp.get('q') || '').trim().slice(0, 80);
+      if (q.length < 3) return send(res, 400, { error: 'bad_request', message: 'q required' });
+      try { return send(res, 200, { results: await findImages(q, Math.min(Number(sp.get('n')) || 3, 6)) }); }
+      catch (e) { return send(res, 502, { error: 'upstream', message: e.message }); }
     }
     if (pathname === '/api/test' && req.method === 'GET') return send(res, 200, await selfTest());
     if (pathname === '/api/ai' && req.method === 'POST') return await handleAI(req, res);
