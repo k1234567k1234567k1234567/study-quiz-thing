@@ -32,13 +32,18 @@ export function detect(text) {
   if (plant >= 1) out.bio.push('plant-cell');
   if (animal >= 2 && (plant === 0 || /animal cells?/i.test(t))) out.bio.push('animal-cell');
 
-  const math = count(t, /\b(domain|range|parabolas?|quadratics?|asymptotes?|vertex|intercepts?|reciprocal function|absolute value|square root function|radical function|linear function|f\(x\)|function notation)\b/gi);
+  // Trig notes say "vertex at the origin", "reciprocal ratio" and "vertical asymptote" without being about graphing functions,
+  // so when the notes are clearly trigonometry those words alone do not switch on the function-graph pictures.
+  const trig = count(t, /\b(sine|cosine|tangent|soh|cah|toa|hypotenuse|cast rule|reference angle|related acute angle|standard position|terminal arm|trigonometr\w+|csc|sec|cot)\b/gi) >= 3;
+  const math = trig
+    ? count(t, /\b(domain|range|parabolas?|quadratics?|absolute value|square root function|radical function|linear function|f\(x\)|function notation|x-intercepts?|y-intercepts?)\b/gi)
+    : count(t, /\b(domain|range|parabolas?|quadratics?|asymptotes?|vertex|intercepts?|reciprocal function|absolute value|square root function|radical function|linear function|f\(x\)|function notation)\b/gi);
   if (math >= 2) {
     const fam = [];
-    if (/parabola|quadratic|vertex/i.test(t)) fam.push('quad');
+    if (/parabola|quadratic/i.test(t) || (!trig && /vertex/i.test(t))) fam.push('quad');
     if (/square root|radical/i.test(t)) fam.push('sqrt');
     if (/absolute value/i.test(t)) fam.push('abs');
-    if (/reciprocal|rational|asymptote/i.test(t)) fam.push('recip');
+    if (/reciprocal function|rational function/i.test(t) || (!trig && /reciprocal|rational|asymptote/i.test(t))) fam.push('recip');
     if (/linear|slope/i.test(t)) fam.push('lin');
     out.graph = fam.length ? fam : ['quad', 'sqrt', 'abs', 'recip', 'lin'];
   }
