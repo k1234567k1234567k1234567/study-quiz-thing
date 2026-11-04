@@ -105,3 +105,7 @@ Quizzes have a difficulty, one level or a mix (for example Easy + Hard splits th
 - AI mode: the level is added to the prompt (easy is direct recall with clearly different wrong options; hard is multi-step with wrong options close to the answer).
 - Basic mode (`generate.js`): easy leans to multiple choice and true/false and picks wrong options that look different; hard leans to typed answers and picks wrong options that look like the right one.
 - Picture questions (`diagramq.js`): each question gets a hardness score (longer wording, more numbers, longer answers, several-step wording, look-alike wrong options), and each topic uses its easiest, middle or hardest questions. The topics themselves do not change.
+
+## Checking the arithmetic in AI-written questions
+
+The AI can slip on a calculation. `public/js/mathcheck.js` reads the working in each question's explanation (for example "adjacent = 4280 / tan 24° ≈ 9613 ft"), works it out itself with a small hand-written parser (angles in degrees, no `eval`), and drops the question if the result disagrees with what the explanation claims or with the option marked correct (rounding to about 3 significant figures is allowed). Questions with no checkable calculation are left alone. The AI prompt also asks it to show its calculation in that form.

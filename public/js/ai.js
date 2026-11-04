@@ -1,6 +1,7 @@
 // Talks to our own server (/api/ai), which holds the NVIDIA key.
 import { TRANSCRIBE, CARD_SYSTEM, quizSystem } from './prompts.js';
 import { fixMC } from './options.js';
+import { workingAgrees } from './mathcheck.js';
 
 export class AIError extends Error {
   constructor(message, code) { super(message); this.code = code; }
@@ -133,6 +134,6 @@ export function makeQuiz({ source, topic, details, grade, count, types, difficul
   return jsonCall(
     [{ role: 'system', content: quizSystem({ grade, count, types, hasNotes, difficulty }) }, { role: 'user', content: user }],
     { maxTokens: 4500, temperature: 0.5 },
-    (arr) => (Array.isArray(arr) ? arr : arr.questions || []).map(normQuestion).filter(Boolean),
+    (arr) => (Array.isArray(arr) ? arr : arr.questions || []).map(normQuestion).filter(Boolean).filter((q) => workingAgrees(q) !== false), // a question whose own working does not add up is thrown out
   );
 }

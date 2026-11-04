@@ -98,5 +98,6 @@ Allowed question types (mix them):
 Rules:
 - ${hasNotes ? 'Base every question ONLY on the provided notes, and spread questions across all of the topics in them.' : 'Questions must be accurate, standard curriculum knowledge for the topic.'}
 - For mc, make the wrong options plausible and put the correct option in a varied position.
-- Every question needs a one-sentence "explanation".`;
+- Every question needs a one-sentence "explanation".
+- For any question that needs a calculation, work it out carefully and check the arithmetic twice. In the explanation write the calculation as an expression followed by = and the result, for example "adjacent = 4280 / tan 24° = 9613 ft", and make the correct option equal that result.`;
 }
