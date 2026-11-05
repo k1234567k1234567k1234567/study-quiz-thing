@@ -372,7 +372,7 @@ function pool(text, extra = [], level = 'medium') {
   const d = detect(text);
   const made = d.extra.map((id) => {
     const seen = new Set(); const list = [];
-    for (let i = 0; i < 4; i++) for (const p of GENERATORS[id]?.() || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); list.push(p); } }
+    for (let i = 0; i < 4; i++) for (const p of GENERATORS[id]?.(level) || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); list.push(p); } }
     return rank(list, level);
   }).filter((l) => l.length);
   const lists = [...d.bio.map((id) => rank(bioProblems(id, text), level)), ...(d.graph.length ? [rank(gather(() => graphProblems(d.graph), 4), level)] : []), ...made, ...extra.map((l) => rank(l, level))];

@@ -5,6 +5,7 @@ import { readNotes, buildCards, buildQuiz } from './pipeline.js';
 import { fileToDataUrl, rotateDataUrl } from './images.js';
 import { pdfPageCount, readPdf } from './pdf.js';
 import { renderDiagram } from './diagrams.js';
+import { fillCorrect } from './answercheck.js';
 import { banner, artUrl } from './art.js';
 import { THEMES, themeOf } from './themes.js';
 import { hasArt } from './ai.js';
@@ -512,19 +513,6 @@ function renderCards(p) {
 }
 
 /* ---------- quiz ---------- */
-const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-function lev(a, b) {
-  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
-  for (let j = 1; j <= b.length; j++) d[0][j] = j;
-  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-  return d[a.length][b.length];
-}
-function fillCorrect(input, answer) {
-  const a = norm(input); const b = norm(answer);
-  if (!a) return false;
-  return a === b || lev(a, b) <= (b.length > 8 ? 2 : b.length > 4 ? 1 : 0);
-}
-
 function renderQuiz(p) {
   if (!p.questions.length) { toast('This quiz has no questions'); return go(`#/p/${p.id}`); }
   store.markStudied();

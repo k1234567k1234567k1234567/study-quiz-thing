@@ -109,3 +109,8 @@ Quizzes have a difficulty, one level or a mix (for example Easy + Hard splits th
 ## Checking the arithmetic in AI-written questions
 
 The AI can slip on a calculation. `public/js/mathcheck.js` reads the working in each question's explanation (for example "adjacent = 4280 / tan 24° ≈ 9613 ft"), works it out itself with a small hand-written parser (angles in degrees, no `eval`), and drops the question if the result disagrees with what the explanation claims or with the option marked correct (rounding to about 3 significant figures is allowed). Questions with no checkable calculation are left alone. The AI prompt also asks it to show its calculation in that form.
+
+## Harder special-triangle questions, and how fill-in answers are marked
+
+- `specialProblems(level)` in `diagramq2.js`: Easy asks sin, cos or tan on a triangle with labelled sides; Medium adds csc, sec and cot; Hard drops the labels and asks (a) the exact length of a side of a scaled 30-60-90 or 45-45-90 triangle, (b) csc, sec, cot, sin, cos or tan of an angle in any quadrant (unit circle shown, CAST needed), (c) a reciprocal ratio from a given ratio, and (d) a combination such as csc 60° × tan 30°. Wrong options are checked to be different numbers from the answer ("2/√3" and "2√3/3" are never both offered).
+- `answercheck.js`: typed fill-in answers are compared by value when the answer is a number or exact expression (so "√3/3" is accepted for "1/√3", but "2/√3" is not accepted for "−2/√3"), as typed for points and inequalities, and with the old small-typo allowance only for plain words.

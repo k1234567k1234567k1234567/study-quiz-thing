@@ -4,6 +4,7 @@
 // is worked out here from the same numbers that draw the picture.
 import { pick, shuffle, rnd, num, pointStr, withWrong, signed, ineq, frac, half, round1 } from './dutil.js';
 import { evalF, zigAt } from './diagrams.js';
+import { evalExpr } from './mathcheck.js';
 
 const both = (dom, rng) => `Domain: ${dom}; Range: ${rng}`;
 const VIEW = [-6, 6, -6, 6];
@@ -395,14 +396,26 @@ export function rightTriProblems() {
 }
 
 const SPECIAL = {
-  30: { sin: '1/2', cos: '√3/2', tan: '1/√3' },
-  60: { sin: '√3/2', cos: '1/2', tan: '√3' },
-  45: { sin: '1/√2', cos: '1/√2', tan: '1' },
+  30: { sin: '1/2', cos: '√3/2', tan: '1/√3', csc: '2', sec: '2/√3', cot: '√3' },
+  60: { sin: '√3/2', cos: '1/2', tan: '√3', csc: '2/√3', sec: '2', cot: '1/√3' },
+  45: { sin: '1/√2', cos: '1/√2', tan: '1', csc: '√2', sec: '√2', cot: '1' },
 };
 const EXACT_POOL = ['1/2', '√3/2', '1/√3', '√3', '1/√2', '1', '√2', '2', '2/√3'];
+const SIX = ['sin', 'cos', 'tan', 'csc', 'sec', 'cot'];
+const RECIP = { sin: 'csc', cos: 'sec', tan: 'cot', csc: 'sin', sec: 'cos', cot: 'tan' };
 
-export function specialProblems() {
-  const t = pick([30, 60, 45]); const wh = pick(RATIO_NAMES);
+// Exact values as numbers, so wrong options can be checked against the right one ("2/√3" and "2√3/3" are the same number).
+const numOf = (s) => evalExpr(String(s).replace(/[−]/g, '-'));
+const sameNum = (a, b) => Math.abs(numOf(a) - numOf(b)) < 1e-9;
+const distinctNums = (list) => list.every((x, i) => list.every((y, j) => i === j || !sameNum(x, y)));
+const neg = (s) => (s.startsWith(MINUS) ? s.slice(1) : MINUS + s);
+const surd = (k, r) => `${k === 1 ? '' : k}√${r}`; // 5√3, √3
+
+export function specialProblems(level = 'medium') {
+  if (level === 'hard') return hardSpecial();
+  const t = pick([30, 60, 45]);
+  // easy: sin, cos, tan; medium adds csc, sec and cot
+  const wh = pick(level === 'easy' ? ['sin', 'cos', 'tan'] : SIX);
   let diagram;
   if (t === 45) diagram = { kind: 'tri', pts: [[0, 1], [1, 0], [0, 0]], v: ['A', 'B', 'C'], right: 2, sides: ['1', '1', '√2'], angles: ['', 'θ = 45°', ''] };
   else {
@@ -414,9 +427,129 @@ export function specialProblems() {
   return [{
     kind: 'graph', topic: 'Special triangles', diagram, prompt: `Use the special triangle shown. What is the exact value of ${wh} θ?`, answer: ans,
     wrong: withWrong(ans, shuffle(EXACT_POOL.filter((x) => x !== ans)), (i) => `${i}/2`),
-    explain: t === 45 ? 'In the 45-45-90 triangle the sides are 1, 1 and √2. For example sin 45° = 1/√2 and tan 45° = 1.' : 'In the 30-60-90 triangle the sides are 1, √3 and 2 (the short side is opposite 30°). Use opposite, adjacent and hypotenuse for θ.',
+    explain: (t === 45 ? 'In the 45-45-90 triangle the sides are 1, 1 and √2. For example sin 45° = 1/√2 and tan 45° = 1.' : 'In the 30-60-90 triangle the sides are 1, √3 and 2 (the short side is opposite 30°). Use opposite, adjacent and hypotenuse.') + ' csc, sec and cot are the flipped (reciprocal) values of sin, cos and tan.',
     fill: { q: `Exact value of ${wh} ${t}${deg} (from the triangle): _____`, answer: ans },
   }];
+}
+
+/* ---- harder special-triangle questions: unlabelled sides, other quadrants, reciprocal ratios and combinations ---- */
+
+// A. A scaled special triangle with one side given: find the exact length of another side.
+function scaledSide() {
+  const k = pick([2, 3, 4, 5, 6, 7, 8, 10]);
+  const kind = pick(['30', '30', '45']);
+  let sides; let angles; let pts; let ans; let wrongs; let explain;
+  if (kind === '30') {
+    pts = [[0, Math.sqrt(3)], [1, 0], [0, 0]]; angles = ['30°', '60°', ''];
+    const short = `${k}`; const long = surd(k, 3); const hyp = `${2 * k}`;
+    const given = pick(['hyp', 'short', 'long']);
+    const target = pick(['short', 'long', 'hyp'].filter((x) => x !== given));
+    const val = { short, long, hyp };
+    // sides[0] = BC (opposite 30°, the short side), sides[1] = CA (opposite 60°, the long side), sides[2] = AB (hypotenuse)
+    const label = (name) => (name === given ? val[name] : name === target ? 'x' : '');
+    sides = [label('short'), label('long'), label('hyp')];
+    ans = val[target];
+    const cands = [`${k}`, `${2 * k}`, surd(k, 2), surd(k, 3), surd(2 * k, 3), `${k}/√3`, `${k}√3/2`, `${2 * k}/√3`, surd(k * 2, 2), `${3 * k}`].filter((c) => !sameNum(c, ans));
+    wrongs = cands;
+    explain = `This is a 30-60-90 triangle, so the sides are in the ratio 1 : √3 : 2 (short side : long side : hypotenuse). With scale factor ${k} they are ${short}, ${long} and ${hyp}. So x = ${ans}.`;
+  } else {
+    pts = [[0, 1], [1, 0], [0, 0]]; angles = ['45°', '45°', ''];
+    const leg = `${k}`; const hyp = surd(k, 2);
+    const givenHyp = Math.random() < 0.5;
+    const target = givenHyp ? 'leg' : pick(['leg', 'hyp']);
+    sides = givenHyp ? ['x', '', hyp] : target === 'leg' ? ['x', leg, ''] : [leg, '', 'x'];
+    ans = target === 'leg' ? leg : hyp;
+    const cands = [`${k}`, surd(k, 2), `${2 * k}`, surd(k, 3), `${k}/√2`, `${k}√2/2`, surd(2 * k, 2), `${k * k}`].filter((c) => !sameNum(c, ans));
+    wrongs = cands;
+    explain = `This is a 45-45-90 triangle, so the sides are in the ratio 1 : 1 : √2 (leg : leg : hypotenuse). With scale factor ${k} they are ${leg}, ${leg} and ${hyp}. So x = ${ans}.`;
+  }
+  // three wrong options that are different numbers from each other and from the answer
+  const w = [];
+  for (const c of shuffle(wrongs)) if (w.length < 3 && distinctNums([...w, c, ans])) w.push(c);
+  if (w.length < 3) return null;
+  return {
+    kind: 'graph', topic: 'Special triangles', diagram: { kind: 'tri', pts, v: ['A', 'B', 'C'], right: 2, sides, angles },
+    prompt: 'This is a special triangle with one side given. Find the exact length of x.', answer: ans, wrong: w, explain,
+    fill: { q: `Exact length of x: _____`, answer: ans },
+  };
+}
+
+// B. A reciprocal or primary ratio at an angle in any quadrant (needs the special triangle and the CAST rule).
+function quadrantValue() {
+  const t = pick([30, 45, 60]);
+  const q = pick([2, 3, 4, 2, 3, 4, 1]);
+  const phi = q === 1 ? t : q === 2 ? 180 - t : q === 3 ? 180 + t : 360 - t;
+  const wh = pick(['csc', 'sec', 'cot', 'csc', 'sec', 'cot', 'sin', 'cos', 'tan']);
+  const positive = { sin: [1, 2], csc: [1, 2], cos: [1, 4], sec: [1, 4], tan: [1, 3], cot: [1, 3] }[wh].includes(q);
+  const base = SPECIAL[t][wh];
+  const ans = positive ? base : neg(base);
+  const rad = (phi * Math.PI) / 180;
+  const others = shuffle(EXACT_POOL.filter((x) => !sameNum(x, base)));
+  const cands = [neg(ans), positive ? neg(others[0]) : others[0], positive ? others[1] : neg(others[1]), positive ? others[2] : neg(others[2]), (positive ? neg(SPECIAL[t][RECIP[wh]]) : SPECIAL[t][RECIP[wh]])];
+  const w = [];
+  for (const c of shuffle(cands)) if (w.length < 3 && distinctNums([...w, c, ans])) w.push(c);
+  if (w.length < 3) return null;
+  const quadName = ['', 'I', 'II', 'III', 'IV'][q];
+  return {
+    kind: 'graph', topic: 'Special triangles', diagram: { kind: 'angle', R: 1.3, P: [Math.cos(rad), Math.sin(rad)], theta: phi, thetaLabel: `${phi}${deg}`, unit: true },
+    prompt: `Find the exact value of ${wh} ${phi}${deg}.`, answer: ans, wrong: w,
+    explain: `${phi}${deg} is in quadrant ${quadName}, and its related acute angle is ${t}${deg}. The special triangle gives ${wh} ${t}${deg} = ${base}. By the CAST rule ${wh} is ${positive ? 'positive' : 'negative'} in quadrant ${quadName}, so ${wh} ${phi}${deg} = ${ans}.`,
+    fill: { q: `Exact value of ${wh} ${phi}${deg}: _____`, answer: ans },
+  };
+}
+
+// C. A ratio is given (no angle): work out the angle's triangle, then find a reciprocal ratio.
+function givenRatio() {
+  const t = pick([30, 45, 60]);
+  const g = pick(['sin', 'cos', 'tan']);
+  const target = pick(['csc', 'sec', 'cot']);
+  const ans = SPECIAL[t][target];
+  const pts = t === 45 ? [[0, 1], [1, 0], [0, 0]] : [[0, Math.sqrt(3)], [1, 0], [0, 0]];
+  const angles = t === 60 ? ['', 'θ', ''] : t === 30 ? ['θ', '', ''] : ['', 'θ', ''];
+  const cands = shuffle(EXACT_POOL.filter((x) => !sameNum(x, ans)));
+  const given = SPECIAL[t][g];
+  const lure = [given, SPECIAL[t][RECIP[target]], SPECIAL[t === 30 ? 60 : 30][target]].filter((x) => !sameNum(x, ans));
+  const w = [];
+  for (const c of [...lure, ...cands]) if (w.length < 3 && distinctNums([...w, c, ans])) w.push(c);
+  if (w.length < 3) return null;
+  return {
+    kind: 'graph', topic: 'Special triangles', diagram: { kind: 'tri', pts, v: ['A', 'B', 'C'], right: 2, sides: ['', '', ''], angles },
+    prompt: `θ is an acute angle in a right triangle and ${g} θ = ${given}. What is the exact value of ${target} θ?`, answer: ans, wrong: shuffle(w),
+    explain: `${g} θ = ${given} matches the ${t}${deg} special triangle, so θ = ${t}${deg}. Then ${target} θ = ${ans}, because ${target} is the reciprocal of ${RECIP[target]}.`,
+    fill: { q: `${target} θ = _____`, answer: ans },
+  };
+}
+
+// D. Combine two exact values; the answer is a plain fraction.
+function combination() {
+  for (let tries = 0; tries < 60; tries++) {
+    const pickV = () => { const t = pick([30, 45, 60]); const r = pick(SIX); return { t, r, v: SPECIAL[t][r] }; };
+    const a = pickV(); const b = pickV();
+    if (a.t === b.t && a.r === b.r) continue;
+    const op = pick(['+', '−', '×', '÷']);
+    const x = numOf(a.v); const y = numOf(b.v);
+    const res = op === '+' ? x + y : op === '−' ? x - y : op === '×' ? x * y : x / y;
+    let den = 0;
+    for (let d = 1; d <= 6; d++) if (Math.abs(res * d - Math.round(res * d)) < 1e-9) { den = d; break; }
+    if (!den || Math.abs(res) > 9 || Math.abs(res) < 0.2) continue;
+    const n = Math.round(res * den);
+    const ans = frac(n, den);
+    const near = [frac(n + den, den), frac(n - den, den), frac(n + 1, den), frac(n - 1, den), frac(n, den + 1), frac(-n, den)].filter((c) => c !== ans);
+    const w = [];
+    for (const c of shuffle(near)) if (w.length < 3 && distinctNums([...w, c, ans])) w.push(c);
+    if (w.length < 3) continue;
+    const ex = `${a.r} ${a.t}${deg} ${op} ${b.r} ${b.t}${deg}`;
+    return {
+      kind: 'graph', topic: 'Special triangles', prompt: `Find the exact value of ${ex}.`, answer: ans, wrong: w,
+      explain: `${a.r} ${a.t}${deg} = ${a.v} and ${b.r} ${b.t}${deg} = ${b.v}, so ${ex} = ${a.v} ${op} ${b.v} = ${ans}.`,
+      fill: { q: `${ex} = _____`, answer: ans },
+    };
+  }
+  return null;
+}
+
+function hardSpecial() {
+  return [scaledSide(), quadrantValue(), givenRatio(), combination()].filter(Boolean);
 }
 
 /* ================= angles in standard position and the unit circle ================= */
