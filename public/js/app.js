@@ -401,6 +401,53 @@ function renderProject(p) {
     draw();
     close = modal('Change difficulty', body, [{ label: 'Cancel' }, { label: 'Rebuild quiz', primary: true, onClick: () => { apply(); } }]);
   };
+  // Shows everything about the quiz in one place. Notes, topic, details, level, difficulty, length and question types can all be
+  // changed here, and "Save and update quiz" rebuilds the questions from what is typed.
+  const quizDetails = () => {
+    const d = { grade: p.grade, difficulty: levelsOf(p.difficulty), count: p.count || p.questions.length || 10, types: [...(p.types || Object.keys(QTYPES))] };
+    const name = h('input', { type: 'text', value: p.name, maxlength: 60 });
+    const topic = h('input', { type: 'text', value: p.topic || '', placeholder: 'e.g. Photosynthesis, WW1 causes' });
+    const details = h('textarea', { rows: 2, placeholder: 'Subtopics or things to focus on (optional)' }, p.details || '');
+    const notes = h('textarea', { rows: 12, class: 'mono', placeholder: 'Type or paste your notes here' }, p.transcript || '');
+    const opts = h('div', { class: 'stack' });
+    const drawOpts = () => opts.replaceChildren(
+      h('b', {}, 'Your level'),
+      h('div', { class: 'seg' }, Object.entries(GRADES).map(([k, g]) => h('button', { class: `segbtn ${d.grade === k ? 'on' : ''}`, type: 'button', onclick: () => { d.grade = k; drawOpts(); } }, h('strong', {}, g.label), h('small', {}, g.sub)))),
+      h('b', {}, 'Difficulty (pick one or more)'),
+      h('div', { class: 'seg three', role: 'group', 'aria-label': 'Difficulty' }, Object.entries(DIFFICULTY).map(([k, v]) => { const on = d.difficulty.includes(k); return h('button', { class: `segbtn ${on ? 'on' : ''}`, type: 'button', 'aria-pressed': String(on), onclick: () => { d.difficulty = toggleLevel(d.difficulty, k); drawOpts(); } }, h('strong', {}, `${on ? '✓ ' : ''}${v.label}`), h('small', {}, v.desc)); })),
+      h('p', { class: 'muted small' }, mixLine(d.difficulty, d.count)),
+      h('b', {}, 'Number of questions'),
+      h('div', { class: 'row wrapr' }, [5, 10, 15, 20, 30].map((n) => h('button', { class: `pill ${d.count === n ? 'on' : ''}`, type: 'button', onclick: () => { d.count = n; drawOpts(); } }, `${n} questions`))),
+      h('b', {}, 'Question types'),
+      h('div', { class: 'row wrapr' }, Object.entries(QTYPES).map(([k, label]) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: d.types.includes(k), onchange: (e) => { d.types = e.target.checked ? [...d.types, k] : d.types.filter((t) => t !== k); } }), label))));
+    drawOpts();
+    const field = (label, el) => h('label', { class: 'field' }, h('span', {}, label), el);
+    const body = h('div', { class: 'stack' },
+      h('p', { class: 'muted small' }, `${p.questions.length} questions now${p.lastResult ? ` · last score ${p.lastResult.score}/${p.lastResult.total}` : ''} · made in ${p.mode === 'ai' ? 'AI' : 'basic'} mode`),
+      field('Quiz name', name), field('Topic', topic), field('Details to focus on', details), field('Notes (change them and update the quiz)', notes), opts);
+    const read = () => ({ name: name.value.trim() || p.name, topic: topic.value.trim(), details: details.value.trim(), transcript: notes.value.trim() });
+    const valid = (v) => {
+      if (!d.types.length) { toast('Pick at least one question type.'); return false; }
+      if (!v.transcript && !v.topic) { toast('Add some notes or a topic first.'); return false; }
+      return true;
+    };
+    const update = async () => {
+      const v = read();
+      const b = busy('Updating the quiz...');
+      try {
+        const { questions, source } = await buildQuiz({ transcript: v.transcript, topic: v.topic, details: v.details, grade: d.grade, difficulty: d.difficulty, count: d.count, types: d.types, mode: mode(), onProgress: b.set });
+        store.update(p.id, { name: v.name, topic: v.topic, details: v.details, transcript: v.transcript || source || '', grade: d.grade, difficulty: d.difficulty, count: d.count, types: d.types, questions, lastResult: null });
+        b.close();
+        toast('Quiz updated');
+        renderProject(store.get(p.id));
+      } catch (e) { b.close(); toast(e.message); }
+    };
+    modal('Quiz details', body, [
+      { label: 'Cancel' },
+      { label: 'Save only', onClick: () => { const v = read(); if (!valid(v)) return false; store.update(p.id, { name: v.name, topic: v.topic, details: v.details, transcript: v.transcript, grade: d.grade, difficulty: d.difficulty, count: d.count, types: d.types }); toast('Saved. The questions stay as they are.'); renderProject(store.get(p.id)); } },
+      { label: 'Save and update quiz', primary: true, onClick: () => { if (!valid(read())) return false; update(); } },
+    ]);
+  };
   const del = () => modal('Delete project?', h('p', {}, `"${p.name}" will be removed from this browser.`), [{ label: 'Cancel' }, { label: 'Delete', primary: true, onClick: () => { store.remove(p.id); go('#/'); } }]);
   const showNotes = () => {
     const ta = h('textarea', { rows: 14, class: 'mono' }, p.transcript || '');
@@ -422,6 +469,7 @@ function renderProject(p) {
       h('button', { class: 'btn', onclick: showNotes }, 'View notes text'),
       h('button', { class: 'btn', onclick: regen }, isQuiz ? 'New quiz from same notes' : 'Regenerate cards'),
       isQuiz && h('button', { class: 'btn', onclick: changeDifficulty }, `Difficulty: ${levelText(p.difficulty)}`),
+      isQuiz && h('button', { class: 'btn', onclick: quizDetails }, 'Quiz details'),
       !isQuiz && h('button', { class: 'btn', onclick: () => printCards(p) }, 'Print cards'),
       !isQuiz && h('button', { class: 'btn', onclick: () => { const c = { id: store.uid(), q: '', a: '', topic: '', weak: false }; p.cards.push(c); store.update(p.id, { cards: p.cards }); renderProject(store.get(p.id)); } }, '+ Add card'),
       h('button', { class: 'btn danger', onclick: del }, 'Delete')),
