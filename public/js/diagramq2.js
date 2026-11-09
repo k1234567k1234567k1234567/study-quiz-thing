@@ -351,7 +351,8 @@ const RATIO6 = ['sin', 'cos', 'tan', 'sin', 'cos', 'tan', 'csc', 'sec', 'cot'];
 // A is at the top, B bottom right, C the right angle at the bottom left. a = BC, b = CA, c = AB.
 const rightTri = (a, b) => ({ pts: [[0, b], [a, 0], [0, 0]], v: ['A', 'B', 'C'], right: 2 });
 
-export function rightTriProblems() {
+export function rightTriProblems(level = 'medium') {
+  if (level === 'hard') { const w = [rightWord(), rightWord(), rightWord()].filter(Boolean); if (w.length) return w; }
   const out = []; const topic = 'Right triangles';
   const [a, b, c] = pick(TRIPLES);
   const atA = Math.random() < 0.5;
@@ -552,6 +553,118 @@ function hardSpecial() {
   return [scaledSide(), quadrantValue(), givenRatio(), combination()].filter(Boolean);
 }
 
+
+/* ================= hard level: word problems with unlabelled diagrams ================= */
+
+// Wrong options for a number answer: the common mistakes, kept only if they are different numbers from the answer and from each other.
+// Options must be clearly different numbers: at least 4% apart for lengths, at least 3 degrees apart for angles, so a student who rounds
+// a middle step can never land on a second "right" answer.
+const apart = (a, b, angle) => Math.abs(a - b) >= (angle ? 3 : Math.max(0.7, Math.min(Math.abs(a), Math.abs(b)) * 0.05));
+function numberOptions(ans, mistakes, fmt, angle = false) {
+  const w = [];
+  // a believable slip lands in the same ballpark; a result three times too big or small is not a tempting wrong answer
+  for (const m of shuffle(mistakes)) if (Number.isFinite(m) && m > 0 && m < ans * 3 && m > ans / 3 && apart(m, ans, angle) && w.every((x) => apart(x, m, angle))) w.push(m);
+  if (w.length < 3) return null;
+  return { answer: fmt(ans), wrong: w.slice(0, 3).map(fmt) };
+}
+const RADS = Math.PI / 180;
+const sinD = (d) => Math.sin(d * RADS); const cosD = (d) => Math.cos(d * RADS); const tanD = (d) => Math.tan(d * RADS);
+const deg1 = (x) => `${Math.round(x)}${deg}`;
+const asinD = (x) => Math.asin(x) / RADS; const acosD = (x) => Math.acos(x) / RADS; const atanD = (x) => Math.atan(x) / RADS;
+// a right triangle with the right angle at C (origin), legs v (up) and h (across), no labels on the sides or angles
+const bareRight = (v, h) => ({ kind: 'tri', pts: [[0, v], [h, 0], [0, 0]], v: ['A', 'B', 'C'], right: 2, sides: ['', '', ''], angles: ['', '', ''] });
+
+function rightWord() {
+  const topic = 'Right triangle word problems';
+  const t = pick(['ladder', 'ramp', 'shadow', 'cliff', 'eye', 'ladder', 'cliff', 'eye']);
+  const m1 = (x) => `${round1(x)} m`;
+  let prompt; let opts; let diagram; let check; let explain;
+  if (t === 'ladder') {
+    const L = pick([4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8]); const a = rnd(55, 78);
+    const ans = L * sinD(a);
+    opts = numberOptions(ans, [L * cosD(a), L * tanD(a), L / sinD(a), L * sinD(a / 2)], m1);
+    prompt = `A ${L} m ladder leans against a vertical wall and makes an angle of ${a}${deg} with the level ground. How high up the wall does the ladder reach? Round to the nearest tenth.`;
+    diagram = bareRight(L * sinD(a), L * cosD(a)); check = { type: 'dist', i: 0, j: 2 };
+    explain = `Draw the right triangle: the ladder is the hypotenuse (${L} m) and the height up the wall is opposite the ${a}${deg} angle. sin ${a}${deg} = height / ${L}, so height = ${L} sin ${a}${deg} = ${m1(ans)}.`;
+  } else if (t === 'ramp') {
+    const r = pick([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.5]); const d = pick([4, 4.5, 5, 5.5, 6, 7, 8, 9]);
+    const ans = atanD(r / d);
+    opts = numberOptions(Math.round(ans), [asinD(r / d), atanD(d / r), 90 - ans, acosD(r / d), ans * 2], (x) => deg1(x), true);
+    prompt = `A wheelchair ramp rises ${r} m over a horizontal distance of ${d} m. What angle does the ramp make with the ground, to the nearest degree?`;
+    diagram = bareRight(r, d); check = { type: 'angle', at: 1 };
+    explain = `The rise is opposite the angle and the horizontal distance is adjacent, so tan θ = ${r} / ${d}. θ = tan⁻¹(${r} / ${d}) = ${deg1(ans)}.`;
+  } else if (t === 'shadow') {
+    const sh = pick([4, 5, 6, 8, 10, 12, 15, 18, 20, 25]); const a = rnd(25, 65);
+    const ans = sh * tanD(a);
+    opts = numberOptions(ans, [sh / tanD(a), sh * sinD(a), sh * cosD(a), sh / sinD(a)], m1);
+    prompt = `A flagpole casts a shadow ${sh} m long when the angle of elevation of the sun is ${a}${deg}. How tall is the flagpole, to the nearest tenth of a metre?`;
+    diagram = bareRight(ans, sh); check = { type: 'dist', i: 0, j: 2 };
+    explain = `The pole is opposite the ${a}${deg} angle and the shadow is adjacent, so tan ${a}${deg} = height / ${sh}. Height = ${sh} tan ${a}${deg} = ${m1(ans)}.`;
+  } else if (t === 'cliff') {
+    const H = pick([30, 40, 45, 50, 60, 75, 80, 90, 100, 120]); const a = rnd(12, 55);
+    const ans = H / tanD(a);
+    opts = numberOptions(ans, [H * tanD(a), H / sinD(a), H * cosD(a), H / cosD(a)], m1);
+    prompt = `From the top of a ${H} m cliff, the angle of depression to a boat is ${a}${deg}. How far is the boat from the base of the cliff, to the nearest tenth of a metre?`;
+    diagram = bareRight(H, ans); check = { type: 'dist', i: 2, j: 1 };
+    explain = `The angle of depression equals the angle of elevation from the boat, so tan ${a}${deg} = ${H} / distance. Distance = ${H} / tan ${a}${deg} = ${m1(ans)}.`;
+  } else {
+    const d = pick([15, 20, 25, 30, 35, 40, 50, 60]); const a = rnd(20, 60); const eye = pick([1.5, 1.6, 1.7, 1.8]);
+    const part = d * tanD(a); const ans = part + eye;
+    opts = numberOptions(ans, [part, part - eye, d / tanD(a) + eye, d * sinD(a) + eye], m1);
+    prompt = `Aiden's eyes are ${eye} m above the ground. He stands ${d} m from the base of a tree and measures the angle of elevation of the top of the tree as ${a}${deg}. How tall is the tree, to the nearest tenth of a metre?`;
+    diagram = bareRight(part, d); check = { type: 'dist', i: 0, j: 2, add: eye };
+    explain = `The triangle gives the part of the tree above eye level: ${d} tan ${a}${deg} = ${m1(part)}. Add his eye height of ${eye} m: ${m1(part)} + ${eye} = ${m1(ans)}.`;
+  }
+  if (!opts) return null;
+  return { kind: 'graph', topic, diagram, prompt, ...opts, explain, check, fill: { q: `${prompt.replace(/\?.*$/, '?')} Answer: _____`, answer: opts.answer } };
+}
+
+// A triangle from its three corner points, with only the corner letters shown.
+const bareTri = (pts) => ({ kind: 'tri', pts, v: ['A', 'B', 'C'], right: -1, sides: ['', '', ''], angles: ['', '', ''] });
+
+function obliqueWord() {
+  const topic = 'Sine and cosine law word problems';
+  const t = pick(['sas', 'aas', 'sss', 'sas', 'aas']);
+  const km = (x) => `${round1(x)} km`; const mm = (x) => `${round1(x)} m`;
+  if (t === 'sas') {
+    const a = rnd(8, 25); const b = rnd(8, 25); const C = rnd(35, 130);
+    const c = Math.sqrt(a * a + b * b - 2 * a * b * cosD(C));
+    const opts = numberOptions(c, [Math.sqrt(a * a + b * b), Math.sqrt(a * a + b * b + 2 * a * b * cosD(C)), a * a + b * b - 2 * a * b * cosD(C), a + b - 2 * Math.min(a, b) * cosD(C)], km);
+    if (!opts) return null;
+    const who = pick([['Two hikers leave the same camp on different trails', 'km', 'trails', 'hikers'], ['Two boats leave the same dock on different courses', 'km', 'courses', 'boats'], ['Two planes leave the same airport on different headings', 'km', 'headings', 'planes']]);
+    const prompt = `${who[0]}. The angle between the two ${who[2]} is ${C}${deg}. After a while one of the ${who[3]} is ${a} km from the start and the other is ${b} km from the start. How far apart are the ${who[3]}, to the nearest tenth of a kilometre?`;
+    return { kind: 'graph', topic, diagram: bareTri([[b * cosD(C), b * sinD(C)], [a, 0], [0, 0]]), prompt, ...opts, check: { type: 'dist', i: 0, j: 1 },
+      explain: `Two sides and the angle between them are known, so use the cosine law: c² = ${a}² + ${b}² − 2(${a})(${b}) cos ${C}${deg}, so c = ${km(c)}.`,
+      fill: { q: `Distance apart (nearest tenth of a km): _____`, answer: opts.answer } };
+  }
+  if (t === 'aas') {
+    const A = rnd(40, 80); const B = rnd(35, 75); const c = pick([100, 120, 150, 180, 200, 250, 300, 350, 400]);
+    const C = 180 - A - B; const b = (c * sinD(B)) / sinD(C); const a = (c * sinD(A)) / sinD(C);
+    const opts = numberOptions(b, [a, (c * sinD(B)) / sinD(A), (c * sinD(C)) / sinD(B), (c * cosD(B)) / cosD(C)], mm);
+    if (!opts) return null;
+    const prompt = `A surveyor stands at point A and a partner stands at point B on the same river bank, ${c} m apart. Both sight a tree C on the opposite bank. Angle BAC is ${A}${deg} and angle ABC is ${B}${deg}. How far is the tree from the surveyor at A, to the nearest tenth of a metre?`;
+    const Cx = b * cosD(A); const Cy = b * sinD(A);
+    return { kind: 'graph', topic, diagram: bareTri([[0, 0], [c, 0], [Cx, Cy]]), prompt, ...opts, check: { type: 'dist', i: 0, j: 2 },
+      explain: `Angle C = 180° − ${A}° − ${B}° = ${C}°. The distance AC is opposite the ${B}${deg} angle, so by the sine law AC / sin ${B}${deg} = ${c} / sin ${C}${deg}. AC = ${mm(b)}.`,
+      fill: { q: `Distance from A to the tree (nearest tenth of a metre): _____`, answer: opts.answer } };
+  }
+  const a = rnd(7, 20); const b = rnd(7, 20); const lo = Math.abs(a - b) + 2; const hi = a + b - 2;
+  if (hi < lo) return null;
+  const c = rnd(lo, hi);
+  const sides = [a, b, c].sort((x, y) => x - y);
+  const [s1, s2, s3] = sides; // s3 is the longest, so the largest angle is opposite it
+  const big = acosD((s1 * s1 + s2 * s2 - s3 * s3) / (2 * s1 * s2));
+  const other1 = acosD((s2 * s2 + s3 * s3 - s1 * s1) / (2 * s2 * s3)); const other2 = acosD((s1 * s1 + s3 * s3 - s2 * s2) / (2 * s1 * s3));
+  const opts = numberOptions(Math.round(big), [other1, other2, 180 - big, acosD((s3 * s3 + s2 * s2 - s1 * s1) / (2 * s3 * s2)) / 2 + 20], (x) => deg1(x), true);
+  if (!opts) return null;
+  const x0 = (s2 * s2 + s3 * s3 - s1 * s1) / (2 * s3); const y0 = Math.sqrt(Math.max(0, s2 * s2 - x0 * x0));
+  // A (origin) and B on the longest side c = s3; C opposite is the vertex between sides s1 and s2 … the largest angle is at C
+  const prompt = `A triangular garden has fences ${s1} m, ${s2} m and ${s3} m long. What is the measure of the largest angle of the garden, to the nearest degree?`;
+  return { kind: 'graph', topic, diagram: bareTri([[0, 0], [s3, 0], [x0, y0]]), prompt, ...opts, check: { type: 'angle', at: 2, round: 0 },
+    explain: `The largest angle is opposite the longest side (${s3} m). Three sides are known, so use the cosine law: cos C = (${s1}² + ${s2}² − ${s3}²) / (2 × ${s1} × ${s2}), so C = ${deg1(big)}.`,
+    fill: { q: `Largest angle (nearest degree): _____`, answer: opts.answer } };
+}
+
 /* ================= angles in standard position and the unit circle ================= */
 
 const PTS = [[3, 4, 5], [4, 3, 5], [6, 8, 10], [8, 6, 10], [5, 12, 13], [12, 5, 13]];
@@ -630,7 +743,8 @@ const obliqueTri = (A, B, a) => {
 };
 const placeTri = (A, b, c) => { const r = (A * Math.PI) / 180; return [[0, 0], [c, 0], [b * Math.cos(r), b * Math.sin(r)]]; };
 
-export function obliqueProblems() {
+export function obliqueProblems(level = 'medium') {
+  if (level === 'hard') { const w = [obliqueWord(), obliqueWord(), obliqueWord()].filter(Boolean); if (w.length) return w; }
   const out = []; const topic = 'Sine and cosine law';
   // Sine law: two angles and a side
   for (let i = 0; i < 30; i++) {
