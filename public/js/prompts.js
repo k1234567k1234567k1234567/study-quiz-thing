@@ -98,6 +98,7 @@ Allowed question types (mix them):
 Rules:
 - ${hasNotes ? 'Base every question ONLY on the provided notes, and spread questions across all of the topics in them.' : 'Questions must be accurate, standard curriculum knowledge for the topic.'}
 - For mc, make the wrong options plausible and put the correct option in a varied position.
+- Every question must be answerable from its own wording alone: include every number, name or fact the student needs, and never refer to a diagram, figure, graph, picture, table, "the notes" or "above"/"below", because the student cannot see any of them. A calculation question states all the values it uses. Do not ask the student to recall something the question does not name.
 - Every question needs a one-sentence "explanation".
 - For any question that needs a calculation, work it out carefully and check the arithmetic twice. In the explanation write the calculation as an expression followed by = and the result, for example "adjacent = 4280 / tan 24° = 9613 ft", and make the correct option equal that result.`;
 }

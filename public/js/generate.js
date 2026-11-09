@@ -60,23 +60,49 @@ function parse(text) {
   return { facts, lists };
 }
 
+// A "term" has to be something a student could be asked about: not a heading ("MCR 3U1 Unit 4"), not a bit of working ("The point (−2, 3)")
+// and not the start of an ordinary sentence ("On the test there ...").
+const badTerm = (t) => /\d|[()=<>]/.test(t) || /\b(unit|lesson|chapter|part)s?\b/i.test(t) || /^(on|in|at|for|if|when|while|since|because|there|here|during|after|before|by|with|as|each|every|all|so|then|but|and|or)\b/i.test(t.trim()) || /^(?:it|this|that|there|they|he|she|we)$/i.test(t.trim());
+
 function split(line) {
-  let m = line.match(/^(.{2,60}?)\s+(?:is defined as|are defined as|is|are|means|refers to|is called|are called)\s+(.+)$/i);
-  if (m && words(m[1]).length <= 6 && !/^(?:it|this|that|there|they|he|she|we)$/i.test(m[1].trim())) return { term: m[1].trim(), def: m[2].trim(), verb: /\bare\b/i.test(line.slice(m[1].length, m[1].length + 12)) ? 'are' : 'is' };
+  let m = line.match(/^(.{2,60}?)\s+(is defined as|are defined as|is|are|means|refers to|is called|are called)\s+(.+)$/i);
+  // keep the verb the notes used ("X means Y" must not become the ungrammatical "X is Y")
+  if (m && words(m[1]).length <= 6 && !badTerm(m[1])) return { term: m[1].trim(), def: m[3].trim(), verb: m[2].toLowerCase(), plural: /^are\b/i.test(m[2]) };
   m = line.match(/^(.{2,50}?)\s*(?::|\s[-–—]\s)\s*(.+)$/);
-  if (m && words(m[1]).length <= 5) return { term: m[1].trim(), def: m[2].trim(), verb: ':' };
+  if (m && words(m[1]).length <= 5 && !badTerm(m[1])) return { term: m[1].trim(), def: m[2].trim(), verb: ':', plural: false };
   return null;
 }
 
-function keyWord(line) {
+// What a fill-in-the-blank may hide. Working (numbers, =, °, √), measurements ("1 km", "30%") and tasks ("Include a labelled diagram") are skipped,
+// because blanking them leaves nothing to work from ("A ship is _____ km out to sea").
+const TASK = /^(include|draw|sketch|determine|find|solve|calculate|use|state|describe|always|remember|write|give|explain|show|label|round|make|identify|evaluate|compare|complete|list|name|graph|copy|check|for each|how many|what|why|which|let|given)\b/i;
+const MATHY = /[=<>×÷+√°²³±∠≤≥]|\d\s*[/^]\s*\d|\b[a-z]\s*\(/;
+const UNITS = /^(?:km|m|cm|mm|ft|kg|g|mg|s|min|h|hr|hours?|days?|years?|degrees?|units?|ml|l|n|j|w|v|a|hz)$/i;
+function clozeWord(line) {
+  if (TASK.test(line.trim()) || /\?\s*$/.test(line)) return null;
   const ws = words(line).map((w, i) => ({ raw: w, w: w.replace(/^[^\w]+|[^\w]+$/g, ''), i })).filter((x) => x.w);
-  const score = (x) => (/\d/.test(x.w) ? 6 : 0) + (x.i > 0 && /^[A-Z]/.test(x.w) ? 5 : 0) + (STOP.has(x.w.toLowerCase()) ? -9 : 0) + Math.min(x.w.length, 12) * 0.5;
-  return ws.length ? ws.reduce((b, x) => (score(x) > score(b) ? x : b)) : null;
+  const mathy = MATHY.test(line) || (line.match(/\d+(?:\.\d+)?/g) || []).length >= 2;
+  const ok = (x, k) => {
+    const lw = x.w.toLowerCase();
+    if (STOP.has(lw) || UNITS.test(lw)) return false;
+    if (/^[A-Za-z][A-Za-z'-]{3,}$/.test(x.w)) return true; // a real word of four or more letters
+    if (/^\d+$/.test(x.w) && !mathy) { // a number only when it is a plain fact: a year, or a count with nothing else to compute
+      const next = (ws[k + 1]?.w || '').toLowerCase(); const unit = UNITS.test(next) || /%/.test(x.raw);
+      return !unit && (/^(1[0-9]|20)\d\d$/.test(x.w) || ws.length >= 6);
+    }
+    return false;
+  };
+  const cands = ws.filter(ok);
+  if (!cands.length) return null;
+  const score = (x) => (/\d/.test(x.w) ? 3 : 0) + (x.i > 0 && /^[A-Z]/.test(x.w) ? 5 : 0) + Math.min(x.w.length, 12) * 0.5;
+  return cands.reduce((b, x) => (score(x) > score(b) ? x : b));
 }
 
 function cloze(line) {
-  const k = keyWord(line);
+  const k = clozeWord(line);
   if (!k) return null;
+  if (words(line).length < 6) return null; // too little left to go on
+  if (!/[.!?)]$/.test(line.trim()) && words(line).length <= 9) return null; // a heading or title, not a statement
   const re = new RegExp(`\\b${k.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
   return { text: line.replace(re, '_____'), answer: k.w };
 }
@@ -91,7 +117,7 @@ export function makeCards(text) {
   for (const f of facts) {
     const s = split(f.line);
     if (s && words(s.def).length >= 1) {
-      cards.push({ id: uid(), q: `${s.verb === 'are' ? 'What are' : 'What is'} ${lowerArticle(s.term)}?`, a: cap(sentence(s.def)), topic: f.heading });
+      cards.push({ id: uid(), q: `${s.plural ? 'What are' : 'What is'} ${lowerArticle(s.term)}?`, a: cap(sentence(s.def)), topic: f.heading });
     } else {
       const c = cloze(f.line);
       cards.push({ id: uid(), q: c ? `Fill in the blank: ${c.text}` : `Explain: ${f.line}`, a: c ? `${c.answer}. (${sentence(f.line)})` : f.line, topic: f.heading });
@@ -156,29 +182,37 @@ export function makeQuiz(text, { count, types, grade, difficulty = 'medium' }) {
   return pool;
 }
 
+const sameText = (x) => String(x).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
 function build(type, f, defs, items, level = 'medium') {
   const topic = f.heading;
-  if (type === 'mc' && f.s && defs.length >= 4) {
-    const wrong = pickWrong(cap(f.s.def), defs.filter((d) => d !== f).map((d) => cap(d.s.def)), level);
+  // A term the notes explain more than once ("The principal angle is ..." as a definition and again in an example) has several true
+  // statements, so a question built from one of them could call another true statement false. Those go to fill-in-the-blank instead.
+  const termOnce = f.s && !defs.some((d) => d !== f && sameText(d.s.term) === sameText(f.s.term));
+  const others = termOnce ? defs.filter((d) => d !== f && sameText(d.s.term) !== sameText(f.s.term)) : [];
+  if (type === 'mc' && termOnce && defs.length >= 4) {
+    const wrong = pickWrong(cap(f.s.def), others.map((d) => cap(d.s.def)), level);
     if (wrong.length === 3) {
       const options = shuffle([cap(f.s.def), ...wrong]);
       return { type: 'mc', q: `Which statement correctly describes ${f.s.term}?`, options, answer: options.indexOf(cap(f.s.def)), explanation: sentence(f.line), topic };
     }
   }
-  if (type === 'tf' && f.s && defs.length >= 2) {
-    const truth = Math.random() < 0.5;
-    const other = shuffle(defs.filter((d) => d !== f))[0];
-    const def = truth ? f.s.def : other.s.def;
-    return { type: 'tf', q: f.s.verb === ':' ? `${cap(f.s.term)}: ${def}` : `${cap(f.s.term)} ${f.s.verb} ${def}`, answer: truth, explanation: sentence(f.line), topic };
+  if (type === 'tf' && termOnce && others.length >= 1) {
+    const stmt = (def) => (f.s.verb === ':' ? `${cap(f.s.term)}: ${def}` : `${cap(f.s.term)} ${f.s.verb} ${def}`);
+    // a false statement must not appear anywhere in the notes, or it would be marked false while the notes say it is true
+    const known = items.map((x) => sameText(x.line));
+    const wrongOne = shuffle(others).find((d) => { const t = sameText(stmt(d.s.def)); return !known.some((k) => k.includes(t) || t.includes(k)); });
+    const truth = !wrongOne || Math.random() < 0.5;
+    return { type: 'tf', q: stmt(truth ? f.s.def : wrongOne.s.def), answer: truth, explanation: sentence(f.line), topic };
   }
-  if (type === 'short' && f.s) {
+  if (type === 'short' && termOnce) {
     return { type: 'short', q: `Explain: ${f.s.term}`, answer: cap(sentence(f.s.def)), explanation: '', topic };
   }
   if (type === 'mc' || type === 'fill' || type === 'tf' || type === 'short') {
     const c = cloze(f.line);
     if (!c) return null;
     if (type === 'mc' && items.length >= 4) {
-      const wrong = pickWrong(c.answer, items.map((x) => keyWord(x.line)?.w), level);
+      const wrong = pickWrong(c.answer, items.map((x) => clozeWord(x.line)?.w), level);
       if (wrong.length === 3) {
         const options = shuffle([c.answer, ...wrong]);
         return { type: 'mc', q: `Choose the word that fills the blank: ${c.text}`, options, answer: options.indexOf(c.answer), explanation: sentence(f.line), topic };
