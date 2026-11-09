@@ -20,7 +20,8 @@ const count = (text, words) => new Set((text.match(words) || []).map((w) => w.to
 export function detect(text) {
   const t = text || '';
   const out = { bio: [], graph: [], extra: detectExtra(text || '') };
-  const animal = count(t, /\b(cells?|organelles?|nucle(?:us|i)|mitochondri\w*|ribosom\w*|golgi|lysosom\w*|endoplasmic|cytoplasm|centriol\w*|cell membrane)\b/gi);
+  // organelle names only: the plain words "cell" and "cells" are in every biology note (genetics, blood, reproduction) and are not a cell-structure topic
+  const animal = new Set((t.match(/\b(organelles?|nucle(?:us|i)|mitochondri\w*|ribosom\w*|golgi|lysosom\w*|endoplasmic|cytoplasm|centriol\w*|cell membrane|vacuoles?|chloroplasts?)\b/gi) || []).map((w) => w.toLowerCase().replace(/(ia|ion|s)$/, '').replace(/^nucle(us|i)$/, 'nucleus'))).size;
   const plant = count(t, /\b(chloroplasts?|cell walls?|vacuoles?|plant cells?)\b/gi);
   const neuron = count(t, /\b(neurons?|axons?|dendrites?|myelin|synapses?|ranvier|nervous system)\b/gi);
   if (neuron >= 2) out.bio.push('neuron');
@@ -30,7 +31,7 @@ export function detect(text) {
   if (count(t, /\b(flowers?|petals?|sepals?|stamens?|pistils?|carpels?|anthers?|filaments?|stigma|ovary|ovules?|receptacle)\b/gi) >= 2) out.bio.push('flower');
   if (count(t, /\b(fung(i|us|al)|hyph\w+|mycel\w+|mushrooms?|gills|stipe|spores?)\b/gi) >= 2) out.bio.push('mushroom');
   if (plant >= 1) out.bio.push('plant-cell');
-  if (animal >= 2 && (plant === 0 || /animal cells?/i.test(t))) out.bio.push('animal-cell');
+  if (animal >= 4 && (plant === 0 || /animal cells?/i.test(t))) out.bio.push('animal-cell');
 
   // Trig notes say "vertex at the origin", "reciprocal ratio" and "vertical asymptote" without being about graphing functions,
   // so when the notes are clearly trigonometry those words alone do not switch on the function-graph pictures.
