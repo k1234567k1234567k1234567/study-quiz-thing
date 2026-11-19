@@ -26,7 +26,7 @@ const TOPICS = [
   [/ionic bond|covalent bond|lewis (dot )?structure|bohr.rutherford|valence electrons?/i, 'chemical bonding', 'Chemical bonding', 'chem'],
   [/electrolytic cell|galvanic cell|voltaic cell|electrochemical/i, 'electrochemical cell', 'An electrochemical cell', 'chem'],
   [/endothermic|exothermic|activation energy/i, 'activation energy reaction', 'Reaction energy diagram', 'chem'],
-  [/lens|refraction|ray diagram|focal length|concave mirror|convex/i, 'ray diagram lens', 'A lens ray diagram', 'phys'],
+  [/\blens(es)?\b|refraction|ray diagram|focal length|concave mirror|convex mirror|convex lens/i, 'ray diagram lens', 'A lens ray diagram', 'phys'],
   [/magnetic field|electromagnet|right.hand rule/i, 'magnetic field', 'A magnetic field', 'phys'],
   [/simple machines?|lever|pulley|inclined plane/i, 'simple machines', 'Simple machines', 'phys'],
 ];

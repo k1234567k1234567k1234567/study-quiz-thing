@@ -52,9 +52,11 @@ const RULES = [
   ['pedigree', (t) => has(t, /pedigrees?|carriers? of/i)],
   ['karyotype', (t) => has(t, /karyotype|trisomy|down syndrome|nondisjunction|turner syndrome|klinefelter/i)],
   ['plantgroups', (t) => words(t, /\b(bryophytes?|gymnosperms?|angiosperms?|vascular|seedless|monocots?|dicots?|cotyledons?|xylem|phloem|conifers?|mosses|ferns?)\b/gi) >= 2],
-  ['symmetry', (t) => has(t, /symmetr|radial|bilateral|asymmetr/i) && has(t, /animal|body plan|symmetr/i)],
+  // biology only: a parabola's "axis of symmetry" is not an animal body plan
+  ['symmetry', (t) => has(t, /\b(radial|bilateral|asymmetr\w*)\b/i) && has(t, /\b(animals?|body plans?|sponges?|jellyfish|starfish|cnidarians?|echinoderms?|organisms?)\b/i)],
   ['bactshape', (t) => words(t, /\b(coccus|cocci|bacillus|bacilli|spirill\w+|spirochetes?|strepto\w*|staphylo\w*|diplo\w*)\b/gi) >= 1 && has(t, /bacteri|prokaryot/i)],
-  ['taxonomy', (t) => has(t, /taxonom|kingdom|phylum|binomial nomenclature|classification/i) && words(t, /\b(taxonomy|kingdoms?|phylum|genus|species|classification|binomial nomenclature|domains?|order|family)\b/gi) >= 3],
+  // biology words only: "domain", "order", "family" and "classification" all turn up in maths notes
+  ['taxonomy', (t) => words(t, /\b(taxonomy|taxonomic|taxa|kingdoms?|phylum|phyla|genus|genera|species|binomial nomenclature|linnaeus)\b/gi) >= 2],
 ];
 
 // Notes about sinusoidal (periodic) functions mention sine and cosine, domain, range, f(x), transformations and a "circle" (a Ferris wheel) too,
