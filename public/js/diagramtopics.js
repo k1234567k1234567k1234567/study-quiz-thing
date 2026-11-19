@@ -57,9 +57,20 @@ const RULES = [
   ['taxonomy', (t) => has(t, /taxonom|kingdom|phylum|binomial nomenclature|classification/i) && words(t, /\b(taxonomy|kingdoms?|phylum|genus|species|classification|binomial nomenclature|domains?|order|family)\b/gi) >= 3],
 ];
 
+// Notes about sinusoidal (periodic) functions mention sine and cosine, domain, range, f(x), transformations and a "circle" (a Ferris wheel) too,
+// but those words are not about right triangles, parabolas or the other function pictures. For such notes only the sinusoidal pictures are kept,
+// plus a trig picture when its own tell-tale words are there.
+const PERIODIC = /\b(sinusoidal|amplitude|phase shift|periodic|axis of the curve|midline|period)\b/gi;
+const KEEP_IF = {
+  rtri: /soh ?cah ?toa|hypotenuse/i, special: /special triangles?/i, std: /standard position|terminal arm|\bCAST\b/, unitcircle: /unit circle/i,
+  oblique: /sine law|cosine law|law of sines|law of cosines/i, ambig: /ambiguous case/i, elev: /angles? of (elevation|depression)/i,
+};
+
 export function detectExtra(text) {
-  const out = [];
+  let out = [];
   for (const [id, test] of RULES) { try { if (test(text) && GENERATORS[id]) out.push(id); } catch { /* ignore a bad rule */ } }
+  const periodic = new Set((text.match(PERIODIC) || []).map((w) => w.toLowerCase())).size >= 3;
+  if (periodic && out.includes('sinus')) out = out.filter((id) => id === 'sinus' || (KEEP_IF[id] && KEEP_IF[id].test(text)));
   return out;
 }
 

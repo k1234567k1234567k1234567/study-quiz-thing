@@ -39,7 +39,9 @@ export function detect(text) {
   const math = trig
     ? count(t, /\b(domain|range|parabolas?|quadratics?|absolute value|square root function|radical function|linear function|f\(x\)|function notation|x-intercepts?|y-intercepts?)\b/gi)
     : count(t, /\b(domain|range|parabolas?|quadratics?|asymptotes?|vertex|intercepts?|reciprocal function|absolute value|square root function|radical function|linear function|f\(x\)|function notation)\b/gi);
-  if (math >= 2) {
+  // sinusoidal and periodic notes talk about domain, range and f(x) too, but those are not about parabolas and lines
+  const periodic = count(t, /\b(sinusoidal|amplitude|phase shift|periodic|axis of the curve|midline|period)\b/gi) >= 3;
+  if (math >= 2 && !periodic) {
     const fam = [];
     if (/parabola|quadratic/i.test(t) || (!trig && /vertex/i.test(t))) fam.push('quad');
     if (/square root|radical/i.test(t)) fam.push('sqrt');

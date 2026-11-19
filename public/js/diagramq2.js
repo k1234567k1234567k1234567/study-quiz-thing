@@ -820,7 +820,8 @@ const sinText = (p) => {
   return `y = ${aT}${p.fn}(${inner})${p.c ? signed(p.c) : ''}`;
 };
 
-export function sinusoidProblems() {
+export function sinusoidProblems(level = 'medium') {
+  if (level === 'hard') { const w = [sinWord(), sinWord(), sinEquation(), sinShift()].filter(Boolean); if (w.length >= 2) return w; }
   const p = { fn: pick(['sin', 'cos']), a: pick([1, 2, 3, -1, -2]), k: pick([1, 1, 2, 0.5, 3]), d: 0, c: pick([-1, 0, 0, 1, 2]) };
   if (p.fn === 'sin' && Math.random() < 0.35) p.d = pick([30, 45, 60, 90]);
   if (p.fn === 'sin' && p.a < 0) p.a = Math.abs(p.a);
@@ -840,6 +841,94 @@ export function sinusoidProblems() {
   const w = [...new Set(cands)].slice(0, 3);
   if (w.length === 3) out.push({ kind: 'graph', topic, diagram, prompt: 'Which equation matches the graph?', answer: correct, wrong: w, explain: `a is the amplitude (${num(p.a)}), k = 360 ÷ period = ${num(p.k)}, c is the midline height (${num(p.c)})${p.d ? ` and the curve is shifted ${p.d}° to the right` : ''}.` });
   return out;
+}
+
+
+/* ================= hard level: sinusoidal word problems and equations (Unit 5 style) ================= */
+
+const trigVal = (fn, deg) => (fn === 'sin' ? Math.sin(deg * RADS) : Math.cos(deg * RADS));
+const fmtNum = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 100) / 100));
+const mm1 = (x) => `${round1(x)} m`;
+
+// A rider, a tide or a blade tip: height = middle line + or - amplitude times a trig function of the angle turned.
+function sinWord() {
+  const topic = 'Sinusoidal word problems';
+  const kind = pick(['ferris', 'tide', 'wind']);
+  let prompt; let ans; let mistakes; let explain;
+  if (kind === 'ferris') {
+    const D = pick([12, 14, 16, 18, 20, 24, 30, 40, 50]); const L = pick([1, 2, 2, 3, 4, 5]); const T = pick([60, 90, 120, 150, 180, 240]);
+    const t = rnd(8, T - 8); const R = D / 2; const th = (360 * t) / T;
+    if (Math.abs(Math.cos(th * RADS)) > 0.97 || Math.abs(Math.sin(th * RADS)) < 0.05) return null;
+    ans = L + R - R * Math.cos(th * RADS);
+    mistakes = [L + R - R * Math.sin(th * RADS), R - R * Math.cos(th * RADS), L + R + R * Math.cos(th * RADS), L + R * (1 - Math.cos(th * RADS)) * 2];
+    prompt = `A Ferris wheel has a diameter of ${D} m and its lowest point is ${L} m above the ground. A rider gets on at the lowest point and the wheel turns at a constant rate, making one full turn every ${T} seconds. How high above the ground is the rider after ${t} seconds, to the nearest tenth of a metre?`;
+    explain = `The middle of the wheel is ${R + L} m up and the amplitude is ${R} m. Starting at the bottom gives h = −${R} cos(${fmtNum(360 / T)}t) + ${R + L}. At t = ${t}: h = −${R} cos(${round1(th)}°) + ${R + L} = ${mm1(ans)}.`;
+  } else if (kind === 'tide') {
+    const A = pick([2, 3, 4, 5, 6]); const mid = pick([8, 10, 12, 14]); const P = pick([8, 10, 12, 12, 24]);
+    const t = rnd(1, P - 1); const th = (360 * t) / P;
+    if (Math.abs(Math.cos(th * RADS)) > 0.97 || Math.abs(Math.sin(th * RADS)) < 0.05) return null;
+    ans = mid + A * Math.cos(th * RADS);
+    mistakes = [mid + A * Math.sin(th * RADS), mid - A * Math.cos(th * RADS), A * Math.cos(th * RADS), mid + A * Math.cos(t * RADS)];
+    prompt = `The water in a harbour is ${mid + A} m deep at high tide and ${mid - A} m deep at low tide. High tide is at midnight (t = 0) and one full cycle takes ${P} hours. How deep is the water ${t} hours after midnight, to the nearest tenth of a metre?`;
+    explain = `The middle depth is ${mid} m and the amplitude is ${A} m. Starting at a maximum gives d = ${A} cos(${fmtNum(360 / P)}t) + ${mid}. At t = ${t}: d = ${A} cos(${round1(th)}°) + ${mid} = ${mm1(ans)}.`;
+  } else {
+    const r = pick([2.5, 3, 3.5, 4, 5, 6]); const H = pick([4, 5, 6, 8, 10]); const n = pick([10, 12, 15, 20, 30]);
+    const T = 60 / n; const t = Math.round(T * pick([0.1, 0.15, 0.2, 0.35, 0.4, 0.6, 0.7, 0.85]) * 10) / 10; const th = (360 * t) / T;
+    if (!(t > 0) || Math.abs(Math.cos(th * RADS)) > 0.97 || Math.abs(Math.sin(th * RADS)) < 0.05) return null;
+    ans = H + r - r * Math.cos(th * RADS);
+    mistakes = [H + r - r * Math.sin(th * RADS), r - r * Math.cos(th * RADS), H + r + r * Math.cos(th * RADS), H - r * Math.cos(th * RADS)];
+    prompt = `The blades of a wind turbine are ${r} m long and turn at ${n} revolutions per minute. When a blade points straight down its tip is ${H} m above the ground. How high above the ground is the tip ${t} seconds after it points straight down, to the nearest tenth of a metre?`;
+    explain = `One turn takes 60 ÷ ${n} = ${fmtNum(T)} s. The tip's middle height is ${H + r} m with amplitude ${r} m, so h = −${r} cos(${fmtNum(360 / T)}t) + ${H + r}. At t = ${t}: h = ${mm1(ans)}.`;
+  }
+  const opts = numberOptions(ans, mistakes.filter((x) => x > 0), mm1);
+  if (!opts) return null;
+  return { kind: 'graph', topic, prompt, ...opts, explain, check: { type: 'sinword', kind, prompt }, fill: { q: `${prompt.replace(/\?.*$/, '?')} Answer: _____`, answer: opts.answer } };
+}
+
+const eq = (fn, a, k, d, c) => {
+  const kk = k === 1 ? '' : fmtNum(k);
+  const turn = `θ ${d > 0 ? '+' : '−'} ${Math.abs(d)}°`;
+  const arg = d ? (kk ? `[${kk}(${turn})]` : `[${turn}]`) : `${kk}θ`;
+  return `y = ${a < 0 ? '−' : ''}${Math.abs(a) === 1 ? '' : Math.abs(a)} ${fn} ${arg} ${c < 0 ? '−' : '+'} ${Math.abs(c)}`.replace(/\s+/g, ' ');
+};
+
+// "amplitude A, period P and a maximum at (0, M): write the equation" (worksheet 5-5 question 2 and 3)
+function sinEquation() {
+  const topic = 'Writing sinusoidal equations';
+  const A = pick([2, 3, 4, 5, 6]); const useSin = Math.random() < 0.5;
+  const P = pick(useSin ? [120, 180, 360] : [90, 120, 180, 360]); const k = 360 / P; const M = rnd(A - 2, A + 6); const c = M - A; // a sine shift of P/4 stays a whole number of degrees
+  if (c === 0) return null;
+  const fn = useSin ? 'sin' : 'cos';
+  const d = useSin ? P / 4 : 0; // sine reaches its maximum a quarter-period after 0, so it shifts left by P/4
+  const right = eq(fn, A, k, d, c);
+  const wrongK = k === 4 ? 2 : 4;
+  const alts = useSin
+    ? [eq('sin', A, k, -d, c), eq('sin', A, k, 0, c), eq('sin', A, k, d, M), eq('sin', -A, k, d, c), eq('sin', A, wrongK, d, c)]
+    : [eq('cos', -A, k, 0, c), eq('cos', A, k, 0, M), eq('cos', A, wrongK, 0, c), eq('sin', A, k, 0, c), eq('cos', A, k, 0, -c)];
+  const w = [...new Set(alts)].filter((x) => x !== right).slice(0, 3);
+  if (w.length < 3) return null;
+  const prompt = `A sinusoidal function has an amplitude of ${A} units, a period of ${P}° and a maximum at (0, ${M}). Which ${useSin ? 'sine' : 'cosine'} equation represents it?`;
+  return { kind: 'graph', topic, prompt, answer: right, wrong: w, check: { type: 'sineq', A, P, M, fn },
+    explain: `The amplitude is ${A}, k = 360° ÷ ${P}° = ${fmtNum(k)} and the maximum ${M} is ${A} above the middle line, so the middle line is y = ${c}. ${useSin ? `A sine curve reaches its first maximum a quarter-period (${P / 4}°) after the start, so the maximum at θ = 0 needs a phase shift of ${P / 4}° to the left.` : 'A cosine curve has its maximum at θ = 0, so no phase shift is needed.'} The equation is ${right}.`,
+    fill: { q: `${prompt.replace(/\?.*$/, '?')} y = _____`, answer: right.replace(/^y = /, '') } };
+}
+
+// Phase shift and vertical shift of y = a sin[k(θ ± d)] ± c with respect to y = sin θ (worksheet 5-4 questions 3 and 4)
+function sinShift() {
+  const topic = 'Transformations of sine and cosine';
+  const fn = pick(['sin', 'cos']); const a = pick([2, 3, 4, 5, -2, -3]); const k = pick([1, 2, 3, 4, 5]); const d = pick([25, 30, 45, 60, 90, -30, -45, -60]); const c = pick([1, 2, 3, 4, -1, -2, -3, -5]);
+  const side = (x) => (x > 0 ? 'to the right' : 'to the left'); const upDown = (x) => (x > 0 ? 'up' : 'down');
+  // y = a fn[k(θ − d)] + c : a positive d is a shift to the right
+  const turn = `θ ${d < 0 ? '+' : '−'} ${Math.abs(d)}°`;
+  const text = `y = ${a < 0 ? '−' : ''}${Math.abs(a)} ${fn} [${k === 1 ? turn : `${k}(${turn})`}] ${c < 0 ? '−' : '+'} ${Math.abs(c)}`;
+  const ans = `Phase shift ${Math.abs(d)}° ${side(d)}, vertical shift ${Math.abs(c)} ${upDown(c)}`;
+  const mk = (dd, cc) => `Phase shift ${Math.abs(dd)}° ${side(dd)}, vertical shift ${Math.abs(cc)} ${upDown(cc)}`;
+  const cands = [mk(-d, c), mk(d, -c), mk(-d, -c), mk(d * k, c), mk(d / k, c)].filter((x) => x !== ans);
+  const w = [...new Set(shuffle(cands))].slice(0, 3);
+  if (w.length < 3) return null;
+  const base = fn === 'sin' ? 'y = sin θ' : 'y = cos θ';
+  return { kind: 'graph', topic, prompt: `Determine the phase shift and the vertical shift of ${text} with respect to ${base}.`, answer: ans, wrong: w, check: { type: 'sinshift', fn, a, k, d, c },
+    explain: `In y = a ${fn} [k(θ − d)] + c the phase shift is d and the vertical shift is c. Here d = ${d} (${d > 0 ? 'right' : 'left'}) and c = ${c} (${c > 0 ? 'up' : 'down'}). The factor k = ${k} changes the period, not the phase shift.` };
 }
 
 /* ================= exponential graphs and comparing function types ================= */
