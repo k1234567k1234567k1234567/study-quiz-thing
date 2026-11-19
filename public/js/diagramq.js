@@ -375,7 +375,7 @@ function pool(text, extra = [], level = 'medium') {
   const d = detect(text);
   const made = d.extra.map((id) => {
     const seen = new Set(); const list = [];
-    for (let i = 0; i < 4; i++) for (const p of GENERATORS[id]?.(level) || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); list.push(p); } }
+    for (let i = 0; i < 4; i++) for (const p of GENERATORS[id]?.(level, { text }) || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k)) { seen.add(k); list.push(p); } }
     return rank(list, level);
   }).filter((l) => l.length);
   const lists = [...d.bio.map((id) => rank(bioProblems(id, text), level)), ...(d.graph.length ? [rank(gather(() => graphProblems(d.graph), 4), level)] : []), ...made, ...extra.map((l) => rank(l, level))];
@@ -413,7 +413,7 @@ export function diagramCards({ text, extra = [] }) {
   const graphs = d.graph.length ? graphProblems(d.graph).slice(0, 4) : [];
   const ai = extra.flatMap((l) => l.filter((p) => p.kind === 'name').slice(0, 6));
   // a couple of cards from each detected picture type, taken in turn, so no topic crowds out the plain cards
-  const lists = d.extra.map((id) => { const seen = new Set(); const list = []; for (let i = 0; i < 3 && list.length < 3; i++) for (const p of GENERATORS[id]?.() || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k) && list.length < 3) { seen.add(k); list.push(p); } } return list; }).filter((l) => l.length);
+  const lists = d.extra.map((id) => { const seen = new Set(); const list = []; for (let i = 0; i < 3 && list.length < 3; i++) for (const p of GENERATORS[id]?.(undefined, { text }) || []) { const k = `${p.prompt}|${p.answer}`; if (!seen.has(k) && list.length < 3) { seen.add(k); list.push(p); } } return list; }).filter((l) => l.length);
   const room = Math.max(0, 16 - bio.length - graphs.length - ai.length);
   const more = [];
   for (let i = 0; more.length < room && lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length && more.length < room) more.push(l[i]);

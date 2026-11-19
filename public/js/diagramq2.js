@@ -820,10 +820,12 @@ const sinText = (p) => {
   return `y = ${aT}${p.fn}(${inner})${p.c ? signed(p.c) : ''}`;
 };
 
-export function sinusoidProblems(level = 'medium') {
-  if (level === 'hard') { const w = [sinWord(), sinWord(), sinEquation(), sinShift()].filter(Boolean); if (w.length >= 2) return w; }
+export function sinusoidProblems(level = 'medium', ctx = {}) {
+  // Lessons 1 to 3 (periodic functions, stretches) never mention phase or vertical shifts; those come in lesson 4. Notes without them get no shifted graphs or equations.
+  const shifts = !ctx?.text || /phase shift|translations?|vertical shift|horizontal shift/i.test(ctx.text);
+  if (level === 'hard') { const w = (shifts ? [sinWord(), sinWord(), sinEquation(), sinShift()] : [sinPredict(), sinAxis(), sinKeq(), sinPeriod(), sinKeq()]).filter(Boolean); if (w.length >= 2) return w; }
   const p = { fn: pick(['sin', 'cos']), a: pick([1, 2, 3, -1, -2]), k: pick([1, 1, 2, 0.5, 3]), d: 0, c: pick([-1, 0, 0, 1, 2]) };
-  if (p.fn === 'sin' && Math.random() < 0.35) p.d = pick([30, 45, 60, 90]);
+  if (shifts && p.fn === 'sin' && Math.random() < 0.35) p.d = pick([30, 45, 60, 90]);
   if (p.fn === 'sin' && p.a < 0) p.a = Math.abs(p.a);
   const f = { type: p.fn, a: p.a, k: p.k, d: p.d, c: p.c };
   const A = Math.abs(p.a); const period = 360 / p.k;
@@ -839,7 +841,7 @@ export function sinusoidProblems(level = 'medium') {
   const cands = [{ ...p, a: -p.a }, { ...p, k: p.k === 1 ? 2 : 1 }, { ...p, c: -p.c || 1 }, { ...p, d: p.d ? -p.d : 90 }, { ...p, a: p.a + 1 }, { ...p, fn: p.fn === 'sin' ? 'cos' : 'sin' }]
     .filter((q) => sinText(q) !== correct && !sameGraph({ type: q.fn, a: q.a, k: q.k, d: q.d, c: q.c }, f)).map(sinText);
   const w = [...new Set(cands)].slice(0, 3);
-  if (w.length === 3) out.push({ kind: 'graph', topic, diagram, prompt: 'Which equation matches the graph?', answer: correct, wrong: w, explain: `a is the amplitude (${num(p.a)}), k = 360 ÷ period = ${num(p.k)}, c is the midline height (${num(p.c)})${p.d ? ` and the curve is shifted ${p.d}° to the right` : ''}.` });
+  if (w.length === 3 && (shifts || (p.c === 0 && p.d === 0))) out.push({ kind: 'graph', topic, diagram, prompt: 'Which equation matches the graph?', answer: correct, wrong: w, explain: `a is the amplitude (${num(p.a)}), k = 360 ÷ period = ${num(p.k)}, c is the midline height (${num(p.c)})${p.d ? ` and the curve is shifted ${p.d}° to the right` : ''}.` });
   return out;
 }
 
@@ -929,6 +931,64 @@ function sinShift() {
   const base = fn === 'sin' ? 'y = sin θ' : 'y = cos θ';
   return { kind: 'graph', topic, prompt: `Determine the phase shift and the vertical shift of ${text} with respect to ${base}.`, answer: ans, wrong: w, check: { type: 'sinshift', fn, a, k, d, c },
     explain: `In y = a ${fn} [k(θ − d)] + c the phase shift is d and the vertical shift is c. Here d = ${d} (${d > 0 ? 'right' : 'left'}) and c = ${c} (${c > 0 ? 'up' : 'down'}). The factor k = ${k} changes the period, not the phase shift.` };
+}
+
+
+/* ---- hard level for lessons 1 to 3 only: periodic functions and stretches, no phase or vertical shifts ---- */
+
+// Predict a value of a periodic function from its period (worksheet 5-1 question 4)
+function sinPredict() {
+  const topic = 'Periodic functions';
+  const P = pick([4, 5, 6, 8, 10, 12]);
+  const xs = shuffle([...Array(P).keys()]).slice(0, 3).map((x) => x + 1).sort((a, b) => a - b); // three known inputs inside the first cycle
+  const vals = shuffle([-3, -1, 2, 3, 5, 7, 8, 9]).slice(0, 3);
+  const i = rnd(0, 2); const m = rnd(3, 9); const n = xs[i] + P * m;
+  const ans = String(vals[i]);
+  const w = [...vals.filter((_, j) => j !== i).map(String), 'It cannot be predicted']; // another known value, and the trap that a prediction is impossible
+  if (new Set([ans, ...w]).size !== 4) return null;
+  return { kind: 'graph', topic, prompt: `A periodic function f(x) has a period of ${P}. Its values are f(${xs[0]}) = ${vals[0]}, f(${xs[1]}) = ${vals[1]} and f(${xs[2]}) = ${vals[2]}. What is f(${n})?`, answer: ans, wrong: w, check: { type: 'predict', P, xs, vals, n },
+    explain: `The function repeats every ${P}, so f(x + ${P}) = f(x). ${n} − ${P * m} = ${xs[i]}, so f(${n}) = f(${xs[i]}) = ${ans}.`, fill: { q: `f(${n}) = _____`, answer: ans } };
+}
+
+// Amplitude and the axis of the curve from a maximum and a minimum (lesson 5-1)
+function sinAxis() {
+  const topic = 'Amplitude and axis of a periodic function';
+  const A = pick([2, 3, 4, 5, 6]); const m = rnd(-6, 2); const M = m + 2 * A; const axis = m + A;
+  const what = pick([['a periodic function', 'The function'], ['a rider on a Ferris wheel', 'The rider\'s height'], ['the tide in a harbour', 'The depth']]);
+  const ans = `Amplitude ${A}, axis y = ${axis}`;
+  const cands = [`Amplitude ${2 * A}, axis y = ${axis}`, `Amplitude ${A}, axis y = ${A}`, `Amplitude ${axis}, axis y = ${A}`, `Amplitude ${M}, axis y = ${m}`, `Amplitude ${A}, axis y = ${M - A + 1}`].filter((x) => x !== ans && !/y = -?0$/.test('') );
+  const w = [...new Set(cands)].filter((x) => x !== ans).slice(0, 3);
+  if (w.length < 3 || A === axis) return null;
+  return { kind: 'graph', topic, prompt: `${what[1]} of ${what[0]} has a maximum value of ${M} and a minimum value of ${m}. What are its amplitude and the equation of its axis?`, answer: ans, wrong: w, check: { type: 'axis', M, m, A, axis },
+    explain: `Amplitude = (max − min) / 2 = (${M} − (${m})) / 2 = ${A}. The axis is halfway between them: y = (max + min) / 2 = (${M} + (${m})) / 2 = ${axis}.` };
+}
+
+// y = a sin kθ or y = a cos kθ from an amplitude and a period (worksheet 5-3 questions 4 and 5)
+function sinKeq() {
+  const topic = 'Writing sine and cosine equations';
+  const fn = pick(['sin', 'cos']); const a = pick([2, 3, 4, 5, -2, -3, -4]); const k = pick([2, 3, 4, 5, 6, 8]); const P = 360 / k;
+  const eq2 = (f, aa, kk) => `y = ${aa < 0 ? '−' : ''}${Math.abs(aa) === 1 ? '' : Math.abs(aa)} ${f} ${kk === 1 ? '' : fmtNum(kk)}θ`;
+  const ans = eq2(fn, a, k);
+  const cands = [eq2(fn, -a, k), eq2(fn, a, P), eq2(fn, a, k === 2 ? 3 : 2), eq2(fn === 'sin' ? 'cos' : 'sin', a, k), eq2(fn, Math.abs(a) + 1, k)].filter((x) => x !== ans);
+  const w = [...new Set(shuffle(cands))].slice(0, 3);
+  if (w.length < 3) return null;
+  const refl = a < 0 ? ' It is a reflection of the basic curve in the axis of the curve (it starts by going down).' : '';
+  const startsAtMax = fn === 'cos';
+  const how = fn === 'sin' ? (a < 0 ? 'The graph passes through the origin and goes down first.' : 'The graph passes through the origin and goes up first.') : (a < 0 ? 'The graph starts at its minimum.' : 'The graph starts at its maximum.');
+  void startsAtMax; void refl;
+  return { kind: 'graph', topic, prompt: `Which equation of the form y = a ${fn} kθ has an amplitude of ${Math.abs(a)} and a period of ${P}°? ${how}`, answer: ans, wrong: w, check: { type: 'keq', fn, a, k, P },
+    explain: `The amplitude is |a| = ${Math.abs(a)}${a < 0 ? ' and a is negative because the graph is reflected' : ''}. The period is 360° / k = ${P}°, so k = 360° / ${P}° = ${k}. The equation is ${ans}.`, fill: { q: `Equation: y = _____`, answer: ans.replace(/^y = /, '') } };
+}
+
+// Period of y = a sin bθ (lesson 5-3)
+function sinPeriod() {
+  const topic = 'Stretches of periodic functions';
+  const fn = pick(['sin', 'cos']); const a = pick([2, 3, 4, 5, -2, -3, -5]); const b = pick([2, 3, 4, 5, 6, 8, 10, 12]);
+  const P = 360 / b;
+  const opts = numberOptions(P, [360 * b, b, P * 2, P / 2, 360 - b, 360 / (b + 1)], (x) => `${fmtNum(Math.round(x * 10) / 10)}°`, true);
+  if (!opts) return null;
+  return { kind: 'graph', topic, prompt: `What is the period of y = ${a < 0 ? '−' : ''}${Math.abs(a)} ${fn} ${b}θ?`, ...opts, check: { type: 'period', P },
+    explain: `For y = a ${fn} bθ the period is 360° / b = 360° / ${b} = ${fmtNum(P)}°. The amplitude ${Math.abs(a)} does not change the period.`, fill: { q: `Period of y = ${a < 0 ? '−' : ''}${Math.abs(a)} ${fn} ${b}θ: _____`, answer: opts.answer } };
 }
 
 /* ================= exponential graphs and comparing function types ================= */

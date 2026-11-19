@@ -127,3 +127,5 @@ At Hard, `rightTriProblems` and `obliqueProblems` (`diagramq2.js`) make word pro
 ## Sinusoidal functions (Unit 5)
 
 For periodic or sinusoidal notes only the sinusoidal pictures are used (`detectExtra` drops the parabola, right-triangle and other function pictures that the words "domain", "range" and "sine" would otherwise switch on). At Hard, `sinusoidProblems` adds word problems (a Ferris wheel, a tide, a wind turbine blade: how high or deep after a given time), writing an equation from an amplitude, a period and a maximum, and finding the phase shift and vertical shift of `y = a sin[k(θ − d)] + c`. Answers are checked against the model (the rider's position on the circle, the equation's own maximum and period).
+
+Notes scope: `GENERATORS[id](level, { text })` gets the student's notes, so the sinusoid maker only uses phase or vertical shifts when the notes mention them. Notes for lessons 1 to 3 (periodic functions, stretches) get graphs and Hard questions about the period, amplitude, axis, writing `y = a sin kθ`, and predicting values from the period.
