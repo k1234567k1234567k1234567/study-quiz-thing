@@ -129,3 +129,7 @@ At Hard, `rightTriProblems` and `obliqueProblems` (`diagramq2.js`) make word pro
 For periodic or sinusoidal notes only the sinusoidal pictures are used (`detectExtra` drops the parabola, right-triangle and other function pictures that the words "domain", "range" and "sine" would otherwise switch on). At Hard, `sinusoidProblems` adds word problems (a Ferris wheel, a tide, a wind turbine blade: how high or deep after a given time), writing an equation from an amplitude, a period and a maximum, and finding the phase shift and vertical shift of `y = a sin[k(θ − d)] + c`. Answers are checked against the model (the rider's position on the circle, the equation's own maximum and period).
 
 Notes scope: `GENERATORS[id](level, { text })` gets the student's notes, so the sinusoid maker only uses phase or vertical shifts when the notes mention them. Notes for lessons 1 to 3 (periodic functions, stretches) get graphs and Hard questions about the period, amplitude, axis, writing `y = a sin kθ`, and predicting values from the period.
+
+## Photo reader is hosted on the site
+
+The on-device photo reader (Tesseract.js 5.1.1, Apache-2.0) lives in `public/vendor/tesseract` (the worker, the two engine builds, and the English data, about 11 MB), so reading photos works on networks that block public CDNs. `public/js/ocr.js` loads it from the site first and only falls back to the jsdelivr CDN if that fails. Nothing is uploaded: photos are read in the browser.
